@@ -1,0 +1,231 @@
+/* ==================== Service 特定样式 ==================== */
+
+/* Service 端口显示样式 */
+.service-ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.port-tag {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  background: #f0f7ff;
+  border: 1px solid #adc6ff;
+  color: #2f54eb;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 0;
+  transition: all 0.2s ease;
+}
+
+.port-tag:hover {
+  background: #e6f7ff;
+  border-color: #69c0ff;
+  transform: scale(1.05);
+}
+
+/* Service IP 显示样式 */
+.service-ip {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1890ff;
+  background: #f0f7ff;
+  border: 1px solid #d6e4ff;
+  border-radius: 4px;
+  padding: 2px 8px;
+  display: inline-block;
+}
+
+/* Service 外部 IP 显示样式 */
+.service-external-ips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.ip-tag {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  margin: 0;
+  transition: all 0.2s ease;
+}
+
+.ip-tag:hover {
+  transform: scale(1.05);
+}
+
+/* Service 地址显示样式 */
+.service-addresses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.service-addresses .ant-tag {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* 端口配置表单样式 */
+.port-config-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.port-config-row:hover {
+  border-color: #d9d9d9;
+}
+
+.port-config-row .ant-input,
+.port-config-row .ant-select,
+.port-config-row .ant-input-number {
+  height: 32px;
+}
+
+.port-config-row .ant-select :deep(.ant-select-selector),
+.port-config-row .ant-input-number :deep(.ant-input-number-input) {
+  height: 30px;
+}
+
+/* Service 端点表格样式 */
+.service-endpoints-table {
+  margin-top: 16px;
+}
+
+.service-endpoints-table .ant-table-small .ant-table-tbody > tr > td {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.service-endpoints-table .ant-table-small .ant-table-thead > tr > th {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fafafa;
+}
+
+/* Service 表单样式增强 */
+.k8s-form .port-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.k8s-form .port-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.k8s-form .port-config-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+}
+
+.k8s-form .port-config-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.k8s-form .port-config-item:hover {
+  border-color: #d9d9d9;
+}
+
+.k8s-form .port-config-item .ant-input,
+.k8s-form .port-config-item .ant-select,
+.k8s-form .port-config-item .ant-input-number {
+  height: 32px;
+  font-size: 12px;
+}
+
+.k8s-form .port-config-item .ant-input-number {
+  width: 80px;
+}
+
+.k8s-form .port-config-item .ant-select {
+  width: 80px;
+}
+
+.k8s-form .port-config-item .ant-btn {
+  height: 32px;
+  width: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+/* Service 选择器配置样式 */
+.selector-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f0f7ff;
+  margin-top: 8px;
+}
+
+.selector-empty-state {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* 响应式设计 - Service 特定 */
+@media (max-width: 768px) {
+  .service-ports,
+  .service-external-ips,
+  .service-addresses {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .port-tag,
+  .ip-tag {
+    font-size: 10px;
+  }
+  
+  .service-ip {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 576px) {
+  .k8s-form .port-config-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .k8s-form .port-config-item .ant-input-number,
+  .k8s-form .port-config-item .ant-select {
+    width: 100%;
+  }
+}

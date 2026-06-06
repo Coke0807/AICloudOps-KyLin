@@ -1,0 +1,320 @@
+/* ==================== Cluster 页面特定样式 ==================== */
+/*
+ * Note: 本文件只包含 Cluster 特有样式
+ * 共通样式已移至 k8s-common.css
+ */
+
+/* 表格列样式 */
+.cluster-name-cell {
+  display: flex;
+  align-items: center;
+}
+
+.cluster-name-text {
+  font-weight: 600;
+  color: #1677ff;
+  cursor: default;
+}
+
+.api-addr-text {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  color: #666;
+}
+
+.timeout-text {
+  font-weight: 500;
+  color: #52c41a;
+}
+
+.user-name-text {
+  color: #595959;
+  font-weight: 500;
+}
+
+.time-text {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 命名空间单元格 */
+.namespace-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.namespace-tag {
+  font-size: 12px;
+  margin: 2px 0;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+/* 标签单元格 */
+.tags-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* 命名空间列表样式 */
+.k8s-namespace-list {
+  min-height: 60px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.k8s-namespace-tag {
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  color: #1677ff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 4px;
+}
+
+/* 集群标签显示样式 */
+.k8s-tags-display {
+  min-height: 60px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.k8s-labels-display {
+  min-height: 30px;
+}
+
+.k8s-labels-display .k8s-label-item {
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  color: #1677ff;
+  font-size: 12px;
+  border-radius: 6px;
+  margin: 2px 4px 2px 0;
+  padding: 2px 6px;
+  display: inline-block;
+  word-break: break-all;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k8s-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.k8s-tag-key {
+  background: #f0f2ff;
+  color: #1677ff;
+  border: 1px solid #d6e4ff;
+  font-weight: 600;
+}
+
+.k8s-tag-separator {
+  color: #999;
+  font-weight: normal;
+}
+
+/* KubeConfig 模态框样式 */
+.kubeconfig-modal-content {
+  padding: 8px;
+}
+
+.kubeconfig-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  margin-bottom: 12px;
+}
+
+.cluster-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cluster-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.kubeconfig-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.kubeconfig-content {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+}
+
+.kubeconfig-textarea {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  resize: none;
+}
+
+/* KubeConfig 预览容器样式 */
+.kubeconfig-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.kubeconfig-status-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.config-length-info {
+  font-size: 11px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.kubeconfig-preview-content {
+  flex: 1;
+}
+
+.kubeconfig-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.kubeconfig-clickable:hover {
+  background: #f0f9ff;
+}
+
+.config-preview-text {
+  font-size: 12px;
+  color: #333;
+  line-height: 1.4;
+  background: #fafafa;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
+  word-break: break-all;
+  max-height: 40px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.kubeconfig-clickable .config-preview-text {
+  cursor: pointer;
+}
+
+.kubeconfig-clickable:hover .config-preview-text {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.kubeconfig-empty-state {
+  display: flex;
+  align-items: center;
+  color: #999;
+}
+
+/* KubeConfig Tooltip 样式 */
+.kubeconfig-tooltip-content {
+  font-size: 12px;
+}
+
+.tooltip-header {
+  font-weight: 600;
+  color: #1677ff;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.tooltip-config-content {
+  background: #f6f8fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e1e8ed;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #24292e;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+/* 集群表格列样式 */
+.cluster-table :deep(.ant-table-tbody td[data-index="0"]) {
+  font-weight: 600;
+  color: #1677ff;
+}
+
+.cluster-table :deep(.ant-table-tbody td[data-index="3"]) {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  color: #666;
+}
+
+.cluster-table :deep(.ant-table-tbody td[data-index="4"]) {
+  font-weight: 500;
+  color: #52c41a;
+}
+
+.cluster-kubeconfig-column .ant-btn {
+  height: 32px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 0 12px;
+}
+
+/* 响应式优化 */
+@media (max-width: 576px) {
+  .kubeconfig-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .kubeconfig-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
