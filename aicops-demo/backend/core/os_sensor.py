@@ -367,19 +367,28 @@ class OSSensor:
             }
 
     @staticmethod
+    def _safe_call(func, default=None):
+        """故障隔离: 单个传感器异常不影响整体快照"""
+        try:
+            return func()
+        except Exception:
+            return default if default is not None else {"error": "sensor unavailable"}
+
+    @staticmethod
     def get_full_snapshot() -> Dict[str, Any]:
+        _call = OSSensor._safe_call
         return {
-            "system_info": OSSensor.get_system_info(),
-            "cpu": OSSensor.get_cpu_usage(),
-            "memory": OSSensor.get_memory_info(),
-            "memory_detail": OSSensor.get_memory_detail(),
-            "disks": OSSensor.get_disk_info(),
-            "disk_io": OSSensor.get_disk_io(),
-            "processes": OSSensor.get_process_list(),
-            "network_connections": OSSensor.get_network_connections(),
-            "network_interfaces": OSSensor.get_network_interfaces(),
-            "system_load": OSSensor.get_system_load(),
-            "top_consumers": OSSensor.get_top_resource_consumers(),
-            "zombie_processes": OSSensor.get_zombie_processes(),
-            "uptime": OSSensor.get_system_uptime(),
+            "system_info": _call(OSSensor.get_system_info, {}),
+            "cpu": _call(OSSensor.get_cpu_usage, {}),
+            "memory": _call(OSSensor.get_memory_info, {}),
+            "memory_detail": _call(OSSensor.get_memory_detail, {}),
+            "disks": _call(OSSensor.get_disk_info, []),
+            "disk_io": _call(OSSensor.get_disk_io, []),
+            "processes": _call(OSSensor.get_process_list, []),
+            "network_connections": _call(OSSensor.get_network_connections, []),
+            "network_interfaces": _call(OSSensor.get_network_interfaces, []),
+            "system_load": _call(OSSensor.get_system_load, {}),
+            "top_consumers": _call(OSSensor.get_top_resource_consumers, {}),
+            "zombie_processes": _call(OSSensor.get_zombie_processes, []),
+            "uptime": _call(OSSensor.get_system_uptime, {}),
         }

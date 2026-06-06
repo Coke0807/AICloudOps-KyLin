@@ -109,10 +109,30 @@ class SandboxExecutor:
 class ConfigBackup:
     """配置文件自动备份与一键回滚"""
 
+    _INDEX_FILE = "backup_index.json"
+
     def __init__(self):
         self._backup_root = Path(settings.SAFETY.BACKUP_DIR)
         self._backup_root.mkdir(parents=True, exist_ok=True)
-        self._backup_history: list[Dict[str, Any]] = []
+        # 持久化: 从磁盘加载备份索引，避免进程重启后回滚失效
+        self._index_path = self._backup_root / self._INDEX_FILE
+        self._backup_history: list[Dict[str, Any]] = self._load_index()
+
+    def _load_index(self) -> list[Dict[str, Any]]:
+        if self._index_path.exists():
+            try:
+                with open(self._index_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return []
+
+    def _save_index(self):
+        try:
+            with open(self._index_path, "w", encoding="utf-8") as f:
+                json.dump(self._backup_history, f, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
 
     def backup_file(self, file_path: str, operation_id: str) -> Dict[str, Any]:
         """在修改前备份指定文件"""
@@ -135,6 +155,7 @@ class ConfigBackup:
                 "size": src.stat().st_size,
             }
             self._backup_history.append(record)
+            self._save_index()
             return {"success": True, **record}
         except Exception as e:
             return {"success": False, "error": str(e)}

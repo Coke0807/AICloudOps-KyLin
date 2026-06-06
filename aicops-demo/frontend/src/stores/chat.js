@@ -2,6 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { agentApi, historyApi } from '@/api'
 
+let _msgSeq = 0
+/** 生成不重复的消息 ID，避免 Date.now() 同毫秒碰撞 */
+function nextMsgId() {
+  return `${Date.now()}-${++_msgSeq}`
+}
+
 export const useChatStore = defineStore('chat', () => {
   const messages = ref([])
   const loading = ref(false)
@@ -14,7 +20,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!content.trim() || loading.value) return
 
     const userMessage = {
-      id: Date.now(),
+      id: nextMsgId(),
       role: 'user',
       content,
       timestamp: new Date().toISOString(),
@@ -30,7 +36,7 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       const assistantMessage = {
-        id: Date.now() + 1,
+        id: nextMsgId(),
         role: 'assistant',
         content: response.response || response.final_result?.tool_result?.data || '处理完成',
         timestamp: new Date().toISOString(),
@@ -43,7 +49,7 @@ export const useChatStore = defineStore('chat', () => {
       return response
     } catch (error) {
       const errorMessage = {
-        id: Date.now() + 1,
+        id: nextMsgId(),
         role: 'assistant',
         content: `错误: ${error.message}`,
         timestamp: new Date().toISOString(),
@@ -60,7 +66,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!content.trim() || loading.value) return
 
     const userMessage = {
-      id: Date.now(),
+      id: nextMsgId(),
       role: 'user',
       content,
       timestamp: new Date().toISOString(),
@@ -68,7 +74,7 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(userMessage)
 
     const assistantMessage = {
-      id: Date.now() + 1,
+      id: nextMsgId(),
       role: 'assistant',
       content: '',
       reasoning: '',

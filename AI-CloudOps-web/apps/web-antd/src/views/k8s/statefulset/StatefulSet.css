@@ -1,0 +1,214 @@
+/* ==================== StatefulSet 页面特定样式 ==================== */
+/*
+ * Note: 本文件只包含 StatefulSet 特有样式
+ * 共通样式已移至 k8s-common.css
+ */
+
+/* StatefulSet 表格行样式 */
+.statefulset-table :deep(.ant-table-tbody > tr > td) {
+  vertical-align: middle;
+}
+
+/* StatefulSet 表格行状态指示器 */
+.statefulset-table :deep(.ant-table-tbody > tr[data-statefulset-status="Running"]) {
+  border-left: 3px solid #52c41a;
+}
+
+.statefulset-table :deep(.ant-table-tbody > tr[data-statefulset-status="Stopped"]) {
+  border-left: 3px solid #d9d9d9;
+}
+
+.statefulset-table :deep(.ant-table-tbody > tr[data-statefulset-status="Updating"]) {
+  border-left: 3px solid #1890ff;
+}
+
+.statefulset-table :deep(.ant-table-tbody > tr[data-statefulset-status="Error"]) {
+  border-left: 3px solid #ff4d4f;
+}
+
+/* StatefulSet 服务名称标签样式 */
+.ant-tag[color="purple"] {
+  background: #f9f0ff;
+  border-color: #d3adf7;
+  color: #722ed1;
+}
+
+/* StatefulSet 更新策略标签样式 */
+.ant-tag[color="cyan"] {
+  background: #e6fffb;
+  border-color: #87e8de;
+  color: #13c2c2;
+}
+
+/* StatefulSet 选择器显示样式 */
+.k8s-selector-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.k8s-selector-display .ant-tag {
+  margin: 0;
+}
+
+/* 优化副本信息展示 */
+.k8s-replicas-display .k8s-replicas-text {
+  font-weight: 600;
+  color: #1890ff;
+  cursor: help;
+}
+
+.k8s-replicas-display .k8s-replicas-text:hover {
+  color: #40a9ff;
+}
+
+/* StatefulSet 表单配置区域样式 */
+.k8s-form .replica-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f0f7ff;
+}
+
+.k8s-form .replica-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.k8s-form .replica-config-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+}
+
+.k8s-form .replica-config-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.k8s-form .replica-config-item:hover {
+  border-color: #d9d9d9;
+}
+
+.k8s-form .replica-config-item .ant-input,
+.k8s-form .replica-config-item .ant-select,
+.k8s-form .replica-config-item .ant-input-number {
+  height: 32px;
+  font-size: 12px;
+}
+
+.k8s-form .replica-config-item .ant-input-number {
+  width: 100px;
+}
+
+.k8s-form .replica-config-item .ant-select {
+  width: 120px;
+}
+
+.k8s-form .replica-config-item .ant-btn {
+  height: 32px;
+  width: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+/* StatefulSet 服务配置样式 */
+.service-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f9f0ff;
+  margin-top: 8px;
+}
+
+.service-empty-state {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* StatefulSet Pod管理策略指示器样式 */
+.statefulset-policy-ordered {
+  background: #e6f7ff;
+  color: #1890ff;
+  border-color: #91d5ff;
+}
+
+.statefulset-policy-parallel {
+  background: #f6ffed;
+  color: #52c41a;
+  border-color: #b7eb8f;
+}
+
+/* 伸缩模态框特定样式 */
+.scale-modal .ant-form-item-label {
+  font-weight: 600;
+}
+
+.scale-modal .ant-input-number {
+  width: 100%;
+}
+
+.scale-modal .current-replicas {
+  background: #f6ffed;
+  border: 1px solid #d9f7be;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  color: #52c41a;
+  font-size: 12px;
+}
+
+/* 回滚模态框特定样式 */
+.rollback-modal .ant-form-item-label {
+  font-weight: 600;
+}
+
+.rollback-modal .ant-input-number {
+  width: 100%;
+}
+
+/* 详情模态框中的选择器卡片样式 */
+.k8s-detail-card .k8s-selector-display .ant-tag {
+  font-size: 13px;
+  padding: 4px 12px;
+}
+
+/* 详情模态框中副本信息的 badge 样式 */
+.k8s-detail-card .k8s-detail-item .ant-badge {
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 576px) {
+  .k8s-form .replica-config-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .k8s-form .replica-config-item .ant-input-number,
+  .k8s-form .replica-config-item .ant-select {
+    width: 100%;
+  }
+  
+  /* 移动端选择器布局优化 */
+  .k8s-selector-display {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -391,9 +391,18 @@ class MCPTools:
                 "error": f"File not found: {filepath}",
                 "risk_level": "medium",
             }
+        # 安全加固: 限制 pattern 长度和特殊字符，防止 ReDoS
+        if len(pattern) > 200:
+            return {
+                "tool": "search_log_file",
+                "status": "error",
+                "error": "Search pattern too long (max 200 chars)",
+                "risk_level": "medium",
+            }
+        # 使用 grep -F (固定字符串匹配) 替代正则，避免 ReDoS 风险
         try:
             result = subprocess.run(
-                ["grep", "-n", pattern, str(resolved)],
+                ["grep", "-Fn", pattern, str(resolved)],
                 capture_output=True, text=True, timeout=10,
             )
             lines = result.stdout.strip().splitlines()[:50]
@@ -569,17 +578,22 @@ class MCPTools:
                 "error": f"Command '{base_cmd}' not in allowed list. Allowed: {allowed_commands}",
                 "risk_level": "medium",
             }
-        if base_cmd == "cat" and len(cmd_parts) > 1:
-            target = cmd_parts[1]
-            resolved = Path(target).resolve()
-            allowed_roots = [Path("/proc").resolve(), Path("/var/log").resolve()]
-            if not any(str(resolved).startswith(str(root)) for root in allowed_roots):
-                return {
-                    "tool": "run_safe_command",
-                    "status": "error",
-                    "error": f"cat is restricted to /proc and /var/log paths, got: {target}",
-                    "risk_level": "medium",
-                }
+        # 安全加固：对接受路径参数的命令限制可访问目录，防止路径遍历
+        _SAFE_PATH_ROOTS = [
+            Path(p).resolve() for p in ["/tmp", "/var/log", "/home", "/opt", "/proc", "/sys", "."]
+        ]
+        if base_cmd in ("cat", "ls", "du") and len(cmd_parts) > 1:
+            for arg in cmd_parts[1:]:
+                if arg.startswith("-") or "/" not in arg:
+                    continue
+                resolved = Path(arg).resolve()
+                if not any(str(resolved).startswith(str(root)) for root in _SAFE_PATH_ROOTS):
+                    return {
+                        "tool": "run_safe_command",
+                        "status": "error",
+                        "error": f"{base_cmd} 路径不在安全白名单中: {arg} (允许: /tmp, /var/log, /home, /opt, /proc)",
+                        "risk_level": "medium",
+                    }
         # 安全加固：禁止 shell 元字符，防止命令注入
         DANGEROUS_CHARS = set(";|&$`()>{}!#\n\\")
         if any(c in DANGEROUS_CHARS for c in command):

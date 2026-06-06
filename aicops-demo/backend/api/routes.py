@@ -54,6 +54,27 @@ async def list_tools():
 
 @router.post("/tools/execute")
 async def execute_tool_endpoint(request: ToolExecuteRequest):
+    # RBAC: 使用默认 operator 角色校验工具调用权限
+    user_ctx = UserContext()
+    if not check_permission(user_ctx, request.tool_name):
+        raise HTTPException(
+            status_code=403,
+            detail=get_missing_permission_message(user_ctx, request.tool_name),
+        )
+    # 高危工具需经安全护栏校验
+    HIGH_RISK_TOOLS = {"kill_process", "run_safe_command", "rollback_operation"}
+    if request.tool_name in HIGH_RISK_TOOLS:
+        guardrail = SafetyGuardrail()
+        command_to_check = ""
+        params = request.params or {}
+        if request.tool_name == "run_safe_command":
+            command_to_check = params.get("command", "")
+        elif request.tool_name == "kill_process":
+            command_to_check = f"kill -{params.get('signal', 15)} {params.get('pid', '')}"
+        if command_to_check:
+            safety = guardrail.validate(command_to_check)
+            if not safety["is_safe"]:
+                raise HTTPException(status_code=403, detail=f"安全拦截: {command_to_check}")
     result = execute_tool(request.tool_name, request.params or {})
     return result
 
@@ -75,7 +96,15 @@ async def stream_request(request: AgentRequest):
             yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.get("/history")
@@ -110,7 +139,9 @@ async def list_traces(limit: int = 50):
         try:
             with open(f, "r", encoding="utf-8") as tf:
                 traces.append(json.load(tf))
-        except:
+        except Exception as exc:
+            import logging
+            logging.warning("加载推理链路文件失败 %s: %s", f.name, exc)
             continue
     return {"traces": traces}
 
@@ -221,7 +252,11 @@ async def list_backups():
 
 @router.post("/security/rollback")
 async def rollback_operation(operation_id: str):
-    """回滚指定操作"""
+    """回滚指定操作 — 仅 admin 角色可执行"""
+    # RBAC: rollback 是高危操作，需要 admin 权限
+    user_ctx = UserContext(role=Role.ADMIN)
+    if not check_permission(user_ctx, "rollback_operation"):
+        raise HTTPException(status_code=403, detail="仅管理员可执行回滚操作")
     result = config_backup.rollback(operation_id)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result.get("error", "回滚失败"))
@@ -307,6 +342,12 @@ ws_manager = ConnectionManager()
 @router.websocket("/ws/monitor")
 async def websocket_monitor(websocket: WebSocket):
     """WebSocket 实时监控端点 — 推送系统状态和 Agent 事件"""
+    # 安全加固: 校验 API Key 查询参数，防止未授权访问系统信息
+    api_key = websocket.query_params.get("api_key", "")
+    from backend.config import settings as _cfg
+    if _cfg.LLM_API_KEY and api_key != _cfg.LLM_API_KEY:
+        await websocket.close(code=4003, reason="Unauthorized")
+        return
     await ws_manager.connect(websocket)
     try:
         while True:

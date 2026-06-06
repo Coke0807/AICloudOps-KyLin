@@ -10,6 +10,7 @@ from backend.safety.rbac import UserContext, Role, check_permission, get_missing
 from backend.database import db
 from backend.mcp.tools import execute_tool, MCPTools
 from backend.utils.audit_logger import AuditLogger
+from backend.config import settings
 
 
 class AIOpsAgent:

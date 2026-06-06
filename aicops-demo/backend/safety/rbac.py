@@ -49,9 +49,13 @@ TOOL_ROLE_REQUIREMENTS: Dict[str, Role] = {
 
 @dataclass
 class UserContext:
-    """当前请求的用户上下文"""
-    user_id: str = "default_operator"
-    role: Role = Role.OPERATOR
+    """当前请求的用户上下文
+
+    安全设计考量：默认角色为 VIEWER（只读），遵循最小权限原则。
+    需要操作权限的场景应显式提升角色。
+    """
+    user_id: str = "default_viewer"
+    role: Role = Role.VIEWER
     ip_address: str = "127.0.0.1"
 
 

@@ -1,0 +1,157 @@
+/* ==================== DaemonSet 页面特定样式 ==================== */
+/*
+ * Note: 本文件只包含 DaemonSet 特有样式
+ * 共通样式已移至 k8s-common.css
+ */
+
+/* DaemonSet 表格行样式 */
+.daemonset-table :deep(.ant-table-tbody > tr > td) {
+  vertical-align: middle;
+}
+
+/* DaemonSet 可用性信息显示样式 */
+.daemonset-availability {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.availability-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.daemonset-availability .ant-tag {
+  margin: 0;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* DaemonSet 表单配置区域样式 */
+.k8s-form .daemonset-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff7e6;
+}
+
+.k8s-form .daemonset-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.k8s-form .daemonset-config-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #262626;
+}
+
+.k8s-form .daemonset-config-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.k8s-form .daemonset-config-item:hover {
+  border-color: #d9d9d9;
+}
+
+.k8s-form .daemonset-config-item .ant-input,
+.k8s-form .daemonset-config-item .ant-select,
+.k8s-form .daemonset-config-item .ant-input-number {
+  height: 32px;
+  font-size: 12px;
+}
+
+.k8s-form .daemonset-config-item .ant-btn {
+  height: 32px;
+  width: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+/* DaemonSet 调度配置样式 */
+.schedule-config-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f0f5ff;
+  margin-top: 8px;
+}
+
+.schedule-empty-state {
+  text-align: center;
+  color: #8c8c8c;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* DaemonSet 更新策略标签样式 */
+.ant-tag[color="cyan"] {
+  background: #e6fffb;
+  border-color: #87e8de;
+  color: #13c2c2;
+}
+
+/* DaemonSet 说明样式 */
+.daemonset-description {
+  background: #f0f2f5;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 16px 0;
+  font-size: 13px;
+  color: #595959;
+  line-height: 1.5;
+}
+
+.daemonset-description .description-title {
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 8px;
+}
+
+.daemonset-description .description-content {
+  margin-bottom: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .daemonset-availability {
+    gap: 2px;
+  }
+  
+  .daemonset-availability .ant-tag {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+}
+
+@media (max-width: 576px) {
+  .k8s-form .daemonset-config-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .daemonset-availability {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+}

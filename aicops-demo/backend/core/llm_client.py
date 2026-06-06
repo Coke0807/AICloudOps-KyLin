@@ -24,6 +24,8 @@ class LLMClient:
         stream: bool = False,
     ) -> Dict[str, Any]:
         if self.mock_mode:
+            if stream:
+                return self._mock_stream_chat(messages, tools)
             return await self._mock_chat(messages, tools)
 
         headers = {
@@ -145,19 +147,6 @@ class LLMClient:
     async def _stream_chat(
         self, headers: Dict[str, str], payload: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, str] | str, None]:
-        if self.mock_mode:
-            reasoning_chunks = ["分析用户请求...", "检查系统状态指标...", "综合判断后生成回复。"]
-            for chunk in reasoning_chunks:
-                await asyncio.sleep(0.15)
-                yield {"type": "reasoning", "content": chunk}
-            content_chunks = ["这是", "Mock", "模式", "的", "流式", "响应", "。"]
-            for word in content_chunks:
-                await asyncio.sleep(0.1)
-                yield word
-            return
-
-        # buffer 用于处理跨 chunk 边界的 SSE 行
-        buffer = ""
         async with self.client.stream(
             "POST",
             f"{self.base_url}/chat/completions",
@@ -166,29 +155,76 @@ class LLMClient:
             timeout=120.0,
         ) as response:
             response.raise_for_status()
-            async for raw_chunk in response.aiter_text():
-                buffer += raw_chunk
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    line = line.strip()
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:]
-                    if data == "[DONE]":
-                        return
-                    try:
-                        chunk = json.loads(data)
-                        if chunk.get("choices"):
-                            delta = chunk["choices"][0].get("delta", {})
-                            # DeepSeek 等模型的思考链字段
-                            if delta.get("reasoning_content"):
-                                yield {"type": "reasoning", "content": delta["reasoning_content"]}
-                            if delta.get("content"):
-                                yield delta["content"]
-                            if delta.get("tool_calls"):
-                                yield {"tool_calls": delta["tool_calls"]}
-                    except json.JSONDecodeError:
-                        continue
+            async for line in response.aiter_lines():
+                line = line.strip()
+                if not line.startswith("data: "):
+                    continue
+                data = line[6:]
+                if data == "[DONE]":
+                    return
+                try:
+                    chunk = json.loads(data)
+                    if chunk.get("choices"):
+                        delta = chunk["choices"][0].get("delta", {})
+                        # DeepSeek 等模型的思考链字段
+                        if delta.get("reasoning_content"):
+                            yield {"type": "reasoning", "content": delta["reasoning_content"]}
+                        if delta.get("content"):
+                            yield delta["content"]
+                        if delta.get("tool_calls"):
+                            yield {"tool_calls": delta["tool_calls"]}
+                except json.JSONDecodeError:
+                    continue
+
+    async def _mock_stream_chat(
+        self,
+        messages: list[Dict[str, str]],
+        tools: Optional[list[Dict[str, Any]]] = None,
+    ) -> AsyncGenerator[Dict[str, str] | str, None]:
+        """Mock 模式下的流式输出生成器"""
+        await asyncio.sleep(0.2)  # 模拟网络延迟
+        user_message = messages[-1]["content"] if messages else ""
+
+        # 检查是否需要触发工具调用
+        if tools and any(keyword in user_message.lower() for keyword in ["状态", "cpu", "内存", "磁盘", "进程"]):
+            yield {"type": "reasoning", "content": "分析用户请求：用户需要获取系统当前运行指标。\n决定调用系统监控工具以收集 CPU、内存和磁盘的最新快照。"}
+            await asyncio.sleep(0.5)
+            yield {
+                "tool_calls": [{
+                    "index": 0,
+                    "id": "call_mock_001",
+                    "type": "function",
+                    "function": {
+                        "name": "get_system_status",
+                        "arguments": "{}"
+                    }
+                }]
+            }
+            return
+
+        # 普通对话 of the mock output
+        mock_responses = {
+            "你能帮我做什么": "我是 AICloudOps 智能运维助手，可以帮您：\n\n1. **系统监控** - 查看 CPU、内存、磁盘、进程状态\n2. **故障排查** - 分析系统异常、识别资源瓶颈\n3. **运维操作** - 执行安全的系统命令\n4. **日志分析** - 查看推理链路、审计记录\n\n请告诉我您需要什么帮助？",
+            "帮助": "我可以帮您进行以下运维操作：\n\n- 查看系统整体状态\n- 检查 CPU 和内存使用情况\n- 查看磁盘空间占用\n- 列出运行中的进程\n- 执行安全的系统命令\n\n直接告诉我您的需求即可！",
+        }
+
+        response_content = "您好！我是您的智能运维助手。我可以帮您监控系统状态、排查故障、执行运维操作。请问有什么可以帮您的？"
+        for keyword, response in mock_responses.items():
+            if keyword in user_message:
+                response_content = response
+                break
+
+        # 模拟思考流
+        yield {"type": "reasoning", "content": "正在分析用户的运维问题..."}
+        await asyncio.sleep(0.3)
+        yield {"type": "reasoning", "content": "准备生成回答："}
+        await asyncio.sleep(0.2)
+
+        # 模拟文本流式输出
+        chunk_size = 3
+        for i in range(0, len(response_content), chunk_size):
+            yield response_content[i:i+chunk_size]
+            await asyncio.sleep(0.08)
 
     async def close(self):
         await self.client.aclose()
