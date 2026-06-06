@@ -1,0 +1,48 @@
+# IDE
+.codeartsdoer/
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Frontend
+node_modules/
+dist/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.dockerignore
+
+# Test/Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 比赛相关
+赛道作品要求图片/
