@@ -31,9 +31,9 @@ const defaultPreferences: Preferences = {
     styleType: 'normal',
   },
   copyright: {
-    companyName: 'Bamboo',
+    companyName: 'aicloudops',
     companySiteLink: 'https://github.com/GoSimplicity',
-    date: '2024',
+    date: '2026',
     enable: true,
     icp: '',
     icpLink: '',

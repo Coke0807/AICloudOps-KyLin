@@ -8,6 +8,8 @@ from contextlib import contextmanager
 
 
 class Database:
+    """SQLite 数据库封装（默认）"""
+    
     _instance = None
 
     def __new__(cls):
@@ -212,4 +214,36 @@ class Database:
             )
 
 
+# SQLite 单例
 db = Database()
+
+
+# ============================================================
+# 数据库工厂函数 - 根据配置选择数据库类型
+# ============================================================
+
+def get_database():
+    """
+    获取数据库实例（工厂函数）
+    
+    根据环境变量 DATABASE_TYPE 选择数据库：
+    - sqlite: 使用 SQLite（默认，单机部署）
+    - mysql: 使用 MySQL（生产环境，多实例部署）
+    
+    Returns:
+        Database 或 MySQLDatabase 实例
+    """
+    from backend.config import get_settings
+    
+    settings = get_settings()
+    
+    if settings.DATABASE_TYPE == "mysql":
+        # 延迟导入，避免未安装 aiomysql 时报错
+        from backend.database_mysql import mysql_db
+        return mysql_db
+    else:
+        return db
+
+
+# 兼容性导出
+__all__ = ['Database', 'db', 'get_database']

@@ -1,0 +1,92 @@
+# AICloudOps 数据存储服务编排
+services:
+  # ============================================================
+  # Redis - 缓存、会话存储、限流
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: aicops-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aicops-network
+    environment:
+      - TZ=Asia/Shanghai
+
+  # ============================================================
+  # MySQL - 关系型数据存储
+  # ============================================================
+  mysql:
+    image: mysql:8.4
+    container_name: aicops-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/init-scripts:/docker-entrypoint-initdb.d:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-aicops_root_2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-aicops}
+      MYSQL_USER: ${MYSQL_USER:-aicops}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-aicops_pass_2024}
+      TZ: Asia/Shanghai
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=500
+      - --innodb_buffer_pool_size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-aicops_root_2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aicops-network
+
+  # ============================================================
+  # Adminer - 数据库管理工具（可选，生产环境建议移除）
+  # ============================================================
+  adminer:
+    image: adminer:latest
+    container_name: aicops-adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - aicops-network
+    environment:
+      - ADMINER_DEFAULT_SERVER=mysql
+      - ADMINER_DESIGN=pepa-linha-dark
+    profiles:
+      - dev  # 仅在开发环境启动：docker-compose --profile dev up
+
+# ============================================================
+# 数据卷 - 持久化存储
+# ============================================================
+volumes:
+  redis-data:
+    driver: local
+    name: aicops-redis-data
+  
+  mysql-data:
+    driver: local
+    name: aicops-mysql-data
+
+# ============================================================
+# 网络 - 服务隔离
+# ============================================================
+networks:
+  aicops-network:
+    driver: bridge
+    name: aicops-network

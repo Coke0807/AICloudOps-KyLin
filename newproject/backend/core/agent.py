@@ -4,9 +4,11 @@ from typing import Dict, Any, Optional, AsyncGenerator, List
 from backend.core.os_sensor import OSSensor
 from backend.core.llm_client import llm_client
 from backend.core.planner import task_planner
+from backend.core.demo_engine import demo_engine
 from backend.safety.validator import SafetyGuardrail
 from backend.safety.audit_agent import audit_agent
 from backend.safety.rbac import UserContext, Role, check_permission, get_missing_permission_message
+from backend.safety.sandbox import sandbox_executor
 from backend.database import db
 from backend.mcp.tools import execute_tool, MCPTools
 from backend.utils.audit_logger import AuditLogger
@@ -369,6 +371,22 @@ class AIOpsAgent:
         """在线程池中执行工具调用，避免阻塞事件循环"""
         return await asyncio.to_thread(self._execute_tool_call, tool_name, arguments)
 
+    @staticmethod
+    def _build_sandbox_command(tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
+        """将高危工具调用转换为可在沙箱中执行的命令字符串
+
+        仅对 run_safe_command（用户自定义命令）和 kill_process（信号发送）构建。
+        rollback_operation 等纯 Python 操作不走沙箱。
+        """
+        if tool_name == "run_safe_command":
+            return arguments.get("command", "")
+        if tool_name == "kill_process":
+            pid = arguments.get("pid", "")
+            signal = arguments.get("signal", 15)
+            if pid:
+                return f"kill -{signal} {pid}"
+        return None
+
     async def _process_single_tool(
         self, tool_call: Dict, tool_name: str, arguments_dict: Dict,
         user_prompt: str, trace_id: str, user_context: UserContext,
@@ -415,7 +433,33 @@ class AIOpsAgent:
                 error_msg = f"审计代理拦截：{audit_result.get('reason', '意图偏移')}"
                 return {"tool_call_id": tool_call_id, "content": json.dumps({"error": error_msg, "blocked": True}, ensure_ascii=False), "tool_result": None}
 
-        # 4) 执行（在线程池中运行，避免阻塞）
+        # 4) 沙箱隔离执行（高危工具走沙箱，其他走标准执行）
+        if tool_name in audit_agent.HIGH_RISK_TOOLS and settings.SAFETY.ENABLE_SANDBOX:
+            # 构建可执行命令字符串，通过沙箱隔离运行
+            sandbox_cmd = self._build_sandbox_command(tool_name, arguments_dict)
+            if sandbox_cmd:
+                sandbox_result = await asyncio.to_thread(
+                    sandbox_executor.execute_in_sandbox, sandbox_cmd, settings.SAFETY.COMMAND_TIMEOUT,
+                )
+                # 将沙箱结果包装为标准工具返回格式
+                if sandbox_result.get("returncode") == 0 and not sandbox_result.get("timed_out"):
+                    parsed = {
+                        "sandbox": sandbox_result.get("sandbox", "unknown"),
+                        "stdout": sandbox_result.get("stdout", ""),
+                        "tool": tool_name,
+                        "status": "executed_in_sandbox",
+                    }
+                    tool_result = json.dumps(parsed, ensure_ascii=False)
+                    self._audit.log_tool_execution(trace_id, tool_name, arguments_dict, parsed)
+                    db.add_tool_execution(tool_name, arguments_dict, parsed, "sandbox_success")
+                    return {"tool_call_id": tool_call_id, "content": tool_result, "tool_result": tool_result}
+                else:
+                    error_msg = f"沙箱执行失败: {sandbox_result.get('stderr', '未知错误')}"
+                    parsed = {"error": error_msg, "sandbox": sandbox_result.get("sandbox", "unknown"), "blocked": False}
+                    self._audit.log_tool_execution(trace_id, tool_name, arguments_dict, parsed)
+                    return {"tool_call_id": tool_call_id, "content": json.dumps(parsed, ensure_ascii=False), "tool_result": None}
+
+        # 降级：标准执行（在线程池中运行，避免阻塞）
         tool_result = await self._execute_tool_async(tool_name, arguments_dict)
         parsed = json.loads(tool_result)
         self._audit.log_tool_execution(trace_id, tool_name, arguments_dict, parsed)
@@ -442,6 +486,14 @@ class AIOpsAgent:
 
         system_snapshot = OSSensor.get_full_snapshot()
         self._audit.log_environment_sensing(trace_id, system_snapshot)
+
+        # ── Demo Mode：在安全校验之前介入，绕过输入级拦截 ──
+        if settings.DEMO_MODE:
+            scenario = demo_engine.match_scenario(user_prompt)
+            if scenario:
+                result = await demo_engine.generate_response(scenario, trace_id, session_id)
+                db.add_message(session_id, "assistant", result["response"], safety_report=result.get("safety_report"))
+                return result
 
         intent_analysis = self._guardrail.validate(user_prompt)
         self._audit.log_intent_analysis(trace_id, intent_analysis)
@@ -578,6 +630,14 @@ class AIOpsAgent:
         system_snapshot = OSSensor.get_full_snapshot()
         self._audit.log_environment_sensing(trace_id, system_snapshot)
 
+        # ── Demo Mode：在安全校验之前介入，绕过输入级拦截 ──
+        if settings.DEMO_MODE:
+            scenario = demo_engine.match_scenario(user_prompt)
+            if scenario:
+                async for chunk in demo_engine.generate_stream(scenario, trace_id, session_id):
+                    yield chunk
+                return
+
         intent_analysis = self._guardrail.validate(user_prompt)
         self._audit.log_intent_analysis(trace_id, intent_analysis)
         self._audit.log_safety_validation(trace_id, intent_analysis)
@@ -681,11 +741,31 @@ class AIOpsAgent:
                 ]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
+                # 收集工具执行结果并推送给前端（实时显示工具详情）
+                tool_details_batch = []
                 for result in results:
                     if isinstance(result, Exception):
                         messages.append({"role": "tool", "tool_call_id": "error", "content": json.dumps({"error": str(result)}, ensure_ascii=False)})
                     else:
                         messages.append({"role": "tool", "tool_call_id": result["tool_call_id"], "content": result["content"]})
+                        if result.get("tool_result"):
+                            try:
+                                parsed_result = json.loads(result["tool_result"])
+                                tool_details_batch.append({
+                                    "name": next((n for tc, n, _ in tool_calls_parsed if tc["id"] == result["tool_call_id"]), "unknown"),
+                                    "args": next((a for tc, _, a in tool_calls_parsed if tc["id"] == result["tool_call_id"]), {}),
+                                    "result": parsed_result,
+                                })
+                            except (json.JSONDecodeError, StopIteration):
+                                pass
+
+                if tool_details_batch:
+                    yield {
+                        "tool_details": tool_details_batch,
+                        "done": False,
+                        "session_id": session_id,
+                        "trace_id": trace_id,
+                    }
 
             if not final_content:
                 final_response = await llm_client.chat(messages, stream=True)

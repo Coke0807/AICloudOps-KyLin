@@ -80,6 +80,12 @@ export interface Session {
 /**
  * 消息
  */
+export interface ToolDetail {
+  name: string;
+  args?: Record<string, any>;
+  result?: any;
+}
+
 export interface ChatMessage {
   id: number;
   role: 'user' | 'assistant';
@@ -87,6 +93,13 @@ export interface ChatMessage {
   trace_id?: string;
   safety_report?: SafetyReport;
   timestamp: string;
+  // 前端扩展字段（运行时动态添加）
+  reasoning?: string;
+  toolStatus?: string;
+  toolDetails?: ToolDetail[];
+  traceId?: string;
+  safetyReport?: SafetyReport;
+  _expanded?: boolean;
 }
 
 /**
@@ -252,4 +265,61 @@ export async function getSandboxStatus(): Promise<any> {
  */
 export async function getBackups(): Promise<any> {
   return requestClientAIOps.get('/security/backups');
+}
+
+// ============================================================
+// 知识库管理 API
+// ============================================================
+
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  file_name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  status: string;
+}
+
+/**
+ * 刷新知识库
+ */
+export async function refreshKnowledgeBase(): Promise<{
+  refreshed: boolean;
+  documents_count: number;
+  vector_count: number;
+  timestamp: string;
+  message: string;
+}> {
+  return requestClientAIOps.post('/assistant/refresh');
+}
+
+/**
+ * 上传知识库文件
+ */
+export async function uploadKnowledgeFile(): Promise<{
+  uploaded: boolean;
+  document_id: string;
+  filename: string;
+  file_size: number;
+  message: string;
+  timestamp: string;
+}> {
+  return requestClientAIOps.post('/assistant/upload-knowledge-file');
+}
+
+/**
+ * 手动添加文档
+ */
+export async function addKnowledgeDocument(data?: {
+  title?: string;
+  file_name?: string;
+  content?: string;
+}): Promise<{
+  added: boolean;
+  document_id: string;
+  message: string;
+  timestamp: string;
+}> {
+  return requestClientAIOps.post('/assistant/add-document', data || {});
 }

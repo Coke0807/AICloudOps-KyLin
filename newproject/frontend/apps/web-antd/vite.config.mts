@@ -7,13 +7,12 @@ export default defineConfig(async () => {
     vite: {
       server: {
         proxy: {
-          '/api': {
+          '/api/v1': {
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api/, ''),
-            target: 'http://localhost:8889/api',
+            target: 'http://localhost:8000',
             ws: true,
           },
-          '/api/v1': {
+          '/api': {
             changeOrigin: true,
             target: 'http://localhost:8000',
             ws: true,

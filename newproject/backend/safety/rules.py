@@ -218,6 +218,7 @@ INJECTION_PATTERNS_EN: List[str] = [
 INJECTION_PATTERNS_CN: List[str] = [
     r"忽略(之前|上面|以上|所有)(的)?(指令|规则|提示|命令|要求|约束)",
     r"忽略(你|系统)(的)?(之前|上面|所有)(指令|规则|提示|命令|要求)",
+    r"忽略(你|系统)?(的)?(之前|上面|所有)?(的)?(安全|防护)(设定|配置|规则|策略)",
     r"忘记(之前|所有|上面)(的)?(规则|指令|约束|限制)",
     r"你现在是",
     r"系统提示(覆盖|替换|忽略|绕过)",
@@ -349,6 +350,7 @@ PATH_BLACKLIST: List[str] = [
     r"^/etc/sudoers",
     r"^/boot\b",
     r"^/usr/lib/systemd\b",
+    r"^/var/log\b",
 ]
 
 BLOCKED_PIDS: set = {0, 1, 2}

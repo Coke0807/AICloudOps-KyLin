@@ -94,6 +94,17 @@ class AuditLogger:
     def log_final_decision(self, trace_id: str, decision: Dict[str, Any]):
         self._log_step(trace_id, "FINAL_DECISION", 5, {"decision": decision})
 
+    def log_system_event(self, event_type: str, data: Dict[str, Any]):
+        """记录系统级事件（非 trace 绑定），如 Redis 初始化、启动失败等"""
+        entry = {
+            "event_type": event_type,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            **data,
+        }
+        event_file = self._logs_dir / f"event_{event_type}_{int(time.time())}.json"
+        with open(event_file, "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, indent=2)
+
     def end_trace(self, trace_id: str, final_result: Dict[str, Any]) -> ReasoningTrace:
         if trace_id not in self._active_traces:
             raise ValueError(f"Trace {trace_id} not found")
@@ -127,3 +138,7 @@ class AuditLogger:
             with open(f, "r", encoding="utf-8") as tf:
                 traces.append(json.load(tf))
         return traces
+
+
+# 模块级单例，供 routes.py / main.py 直接 import
+audit_logger = AuditLogger()

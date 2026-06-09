@@ -77,11 +77,11 @@ AI助手即将执行的工具: {tool_name}
             result["audit_skipped"] = False
             return result
         except Exception:
-            # 审计失败时采取保守策略：放行但标记
+            # 安全第一：审计失败时阻断高危操作，避免 LLM 超时导致误放行
             return {
-                "decision": "approved",
+                "decision": "blocked",
                 "confidence": 0.5,
-                "reason": "审计代理调用失败，降级放行",
+                "reason": "审计服务不可用，出于安全考虑拒绝执行高危操作",
                 "audit_skipped": False,
                 "audit_error": True,
             }
@@ -96,9 +96,9 @@ AI助手即将执行的工具: {tool_name}
         except (json.JSONDecodeError, ValueError):
             pass
         return {
-            "decision": "approved",
+            "decision": "blocked",
             "confidence": 0.5,
-            "reason": "审计结果解析失败，默认放行",
+            "reason": "审计结果解析失败，出于安全考虑阻断执行",
         }
 
     @staticmethod

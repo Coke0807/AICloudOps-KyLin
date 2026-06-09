@@ -3,7 +3,6 @@
   "extends": "@vben/tsconfig/web-app.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "ignoreDeprecations": "5.0",
     "paths": {
       "#/*": ["./src/*"]
     }

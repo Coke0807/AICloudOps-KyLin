@@ -33,11 +33,12 @@ class LLMClient:
             "Content-Type": "application/json",
         }
 
+        # 从配置读取 temperature / max_tokens，避免硬编码覆盖用户 .env 设置
         payload = {
             "model": self.model,
             "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 2048,
+            "temperature": settings.LLM_TEMPERATURE,
+            "max_tokens": settings.LLM_MAX_TOKENS,
             "stream": stream,
         }
 

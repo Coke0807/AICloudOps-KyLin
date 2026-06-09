@@ -3,7 +3,7 @@
   "extends": "@vben/tsconfig/web.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@vben-core/shadcn-ui/*": ["./src/*"]
     }

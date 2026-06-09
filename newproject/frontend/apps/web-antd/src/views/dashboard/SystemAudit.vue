@@ -8,20 +8,43 @@
           <Icon icon="material-symbols:refresh" />
           刷新
         </a-button>
-        <a-button @click="handleExport">
+        <a-button v-if="activeTab === 'audit'" @click="handleExport">
           <Icon icon="material-symbols:download" />
           导出
         </a-button>
-        <a-button 
-          v-if="selectedRowKeys.length > 0" 
-          type="primary" 
-          danger 
+        <a-button
+          v-if="activeTab === 'audit' && selectedRowKeys.length > 0"
+          type="primary"
+          danger
           @click="handleBatchDelete"
         >
           批量删除 ({{ selectedRowKeys.length }})
         </a-button>
       </div>
     </div>
+
+    <!-- Tab 切换 -->
+    <div class="tab-bar">
+      <div
+        class="tab-item"
+        :class="{ active: activeTab === 'audit' }"
+        @click="activeTab = 'audit'"
+      >
+        <Icon icon="material-symbols:shield-person-outline" />
+        HTTP审计日志
+      </div>
+      <div
+        class="tab-item"
+        :class="{ active: activeTab === 'trace' }"
+        @click="switchToTrace"
+      >
+        <Icon icon="material-symbols:route" />
+        交互链路追溯
+      </div>
+    </div>
+
+    <!-- HTTP审计日志 视图 -->
+    <div v-show="activeTab === 'audit'">
 
     <!-- 统计卡片 -->
     <div class="stats-grid">
@@ -187,6 +210,140 @@
         </template>
       </a-table>
     </div>
+    </div>
+
+    <!-- 交互链路追溯 视图 -->
+    <div v-show="activeTab === 'trace'">
+      <div class="trace-toolbar">
+        <a-input
+          v-model:value="traceSearch"
+          placeholder="搜索 Trace ID 或用户指令..."
+          allowClear
+          class="trace-search-input"
+          @pressEnter="fetchTraces"
+        >
+          <template #prefix>
+            <Icon icon="material-symbols:search" />
+          </template>
+        </a-input>
+        <a-button type="primary" @click="fetchTraces" :loading="traceLoading">
+          <Icon icon="material-symbols:refresh" />
+          刷新
+        </a-button>
+      </div>
+
+      <a-spin :spinning="traceLoading">
+        <div v-if="filteredTraces.length === 0 && !traceLoading" class="trace-empty">
+          <Icon icon="material-symbols:route" class="empty-icon" />
+          <p>暂无推理链路数据</p>
+        </div>
+
+        <div class="trace-list">
+          <div
+            v-for="trace in filteredTraces"
+            :key="trace.trace_id"
+            class="trace-card"
+            @click="openTraceDetail(trace)"
+          >
+            <div class="trace-card-header">
+              <div class="trace-id-badge">
+                <Icon icon="material-symbols:fingerprint" />
+                <span class="trace-id-text">{{ trace.trace_id.slice(0, 8) }}...</span>
+              </div>
+              <span class="trace-time">{{ formatTime(trace.start_time) }}</span>
+            </div>
+
+            <div class="trace-card-body">
+              <div class="trace-prompt">{{ truncatePrompt(trace.user_prompt) }}</div>
+              <div class="trace-meta">
+                <span class="trace-meta-item">
+                  <Icon icon="material-symbols:footprint" />
+                  {{ trace.steps?.length || 0 }} 步
+                </span>
+                <span class="trace-meta-item" v-if="trace.end_time">
+                  <Icon icon="material-symbols:timer" />
+                  {{ calcDuration(trace.start_time, trace.end_time) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="trace-card-steps">
+              <a-tag
+                v-for="stepType in getUniqueStepTypes(trace.steps)"
+                :key="stepType"
+                :color="getStepColor(stepType)"
+                class="step-tag"
+              >
+                {{ getStepLabel(stepType) }}
+              </a-tag>
+            </div>
+
+            <div class="trace-card-footer">
+              <a-button type="link" size="small" @click.stop="openTraceDetail(trace)">
+                查看推理链
+                <Icon icon="material-symbols:arrow-forward" />
+              </a-button>
+            </div>
+          </div>
+        </div>
+      </a-spin>
+    </div>
+
+    <!-- 查看推理链详情 -->
+    <a-modal v-model:open="traceDetailVisible" title="推理链路详情" width="960px" :footer="null">
+      <div v-if="currentTrace" class="trace-detail">
+        <div class="trace-detail-header">
+          <div class="detail-item">
+            <label>Trace ID</label>
+            <span class="mono-text">{{ currentTrace.trace_id }}</span>
+          </div>
+          <div class="detail-item">
+            <label>用户指令</label>
+            <span>{{ currentTrace.user_prompt }}</span>
+          </div>
+          <div class="detail-item">
+            <label>开始时间</label>
+            <span>{{ formatTime(currentTrace.start_time) }}</span>
+          </div>
+          <div class="detail-item" v-if="currentTrace.end_time">
+            <label>总耗时</label>
+            <span class="mono-text">{{ calcDuration(currentTrace.start_time, currentTrace.end_time) }}</span>
+          </div>
+        </div>
+
+        <div class="trace-chain-label">推理链路</div>
+        <a-timeline class="trace-timeline">
+          <a-timeline-item
+            v-for="step in currentTrace.steps"
+            :key="step.step_order"
+            :color="getStepColor(step.step)"
+          >
+            <template #dot>
+              <div class="timeline-dot" :class="getStepDotClass(step.step)">
+                <Icon :icon="getStepIcon(step.step)" />
+              </div>
+            </template>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <a-tag :color="getStepColor(step.step)" class="step-label-tag">
+                  {{ getStepLabel(step.step) }}
+                </a-tag>
+                <span class="timeline-order">#{{ step.step_order }}</span>
+                <span class="timeline-time">{{ formatTime(step.timestamp) }}</span>
+              </div>
+              <div class="timeline-data">
+                <pre class="step-data-pre">{{ formatStepData(step.data) }}</pre>
+              </div>
+            </div>
+          </a-timeline-item>
+        </a-timeline>
+
+        <div v-if="currentTrace.final_result" class="trace-final-result">
+          <h4>最终结果</h4>
+          <pre class="step-data-pre">{{ formatJSON(currentTrace.final_result) }}</pre>
+        </div>
+      </div>
+    </a-modal>
 
     <!-- 查看审计日志详情 -->
     <a-modal v-model:open="viewModalVisible" title="审计日志详情" width="900px" :footer="null">
@@ -384,6 +541,8 @@ import {
 
 import { getUserDetailApi } from '#/api/core/system/user';
 
+import { getTraces, type Trace } from '#/api/core/aiops/agent';
+
 // 扩展审计日志类型，包含用户信息
 interface AuditLogWithUser extends AuditLog {
   user_info?: {
@@ -410,6 +569,14 @@ const tableColumns = [
 const loading = ref(false);
 const viewModalVisible = ref(false);
 const advancedSearchVisible = ref(false);
+
+// Tab 切换 & 交互链路追溯
+const activeTab = ref<'audit' | 'trace'>('audit');
+const traceLoading = ref(false);
+const traceList = ref<Trace[]>([]);
+const traceSearch = ref('');
+const traceDetailVisible = ref(false);
+const currentTrace = ref<Trace | null>(null);
 
 // 数据
 const auditLogList = ref<AuditLogWithUser[]>([]);
@@ -474,6 +641,16 @@ const getUniqueTargetTypes = computed(() => {
     }
   });
   return Array.from(types);
+});
+
+const filteredTraces = computed(() => {
+  if (!traceSearch.value) return traceList.value;
+  const kw = traceSearch.value.toLowerCase();
+  return traceList.value.filter(
+    t =>
+      t.trace_id.toLowerCase().includes(kw) ||
+      t.user_prompt.toLowerCase().includes(kw),
+  );
 });
 
 // 工具函数
@@ -554,6 +731,104 @@ const getStatusColor = (status: number) => {
   if (status >= 400 && status < 500) return 'orange';
   if (status >= 500) return 'red';
   return 'default';
+};
+
+// ---- 交互链路追溯方法 ----
+
+/** 步骤类型 → 中文标签映射 */
+const stepLabelMap: Record<string, string> = {
+  INIT: '接收指令',
+  ENVIRONMENT_SENSE: '环境感知',
+  INTENT_ANALYSIS: '意图分析',
+  SAFETY_VALIDATION: '安全校验',
+  TOOL_EXECUTION: '工具执行',
+  FINAL_DECISION: '最终决策',
+};
+
+/** 步骤类型 → 标签颜色 */
+const stepColorMap: Record<string, string> = {
+  INIT: 'default',
+  ENVIRONMENT_SENSE: 'cyan',
+  INTENT_ANALYSIS: 'blue',
+  SAFETY_VALIDATION: 'orange',
+  TOOL_EXECUTION: 'green',
+  FINAL_DECISION: 'purple',
+};
+
+/** 步骤类型 → 图标 */
+const stepIconMap: Record<string, string> = {
+  INIT: 'material-symbols:input',
+  ENVIRONMENT_SENSE: 'material-symbols:sensors',
+  INTENT_ANALYSIS: 'material-symbols:psychology',
+  SAFETY_VALIDATION: 'material-symbols:shield',
+  TOOL_EXECUTION: 'material-symbols:build',
+  FINAL_DECISION: 'material-symbols:check-circle',
+};
+
+const getStepLabel = (step: string) => stepLabelMap[step] || step;
+const getStepColor = (step: string) => stepColorMap[step] || 'default';
+const getStepIcon = (step: string) => stepIconMap[step] || 'material-symbols:help-outline';
+const getStepDotClass = (step: string) => `dot-${step.toLowerCase().replace(/_/g, '-')}`;
+
+/** 从步骤列表中提取去重的步骤类型（保持出现顺序） */
+const getUniqueStepTypes = (steps?: Trace['steps']) => {
+  if (!steps) return [];
+  const seen = new Set<string>();
+  return steps.reduce<string[]>((acc, s) => {
+    if (!seen.has(s.step)) {
+      seen.add(s.step);
+      acc.push(s.step);
+    }
+    return acc;
+  }, []);
+};
+
+/** 截断用户指令用于卡片展示 */
+const truncatePrompt = (text: string, max = 80) =>
+  text.length > max ? `${text.slice(0, max)}...` : text;
+
+/** 计算耗时（毫秒/秒） */
+const calcDuration = (start: string, end: string) => {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+};
+
+/** 格式化步骤数据（精简输出） */
+const formatStepData = (data: Record<string, any>) => {
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return String(data);
+  }
+};
+
+/** 拉取推理链路列表 */
+const fetchTraces = async () => {
+  traceLoading.value = true;
+  try {
+    const res = await getTraces(100);
+    traceList.value = res.traces || [];
+  } catch (error: any) {
+    message.error(error.message || '获取推理链路失败');
+    traceList.value = [];
+  } finally {
+    traceLoading.value = false;
+  }
+};
+
+/** 切换到 trace tab 时懒加载数据 */
+const switchToTrace = () => {
+  activeTab.value = 'trace';
+  if (traceList.value.length === 0) {
+    fetchTraces();
+  }
+};
+
+/** 打开 trace 详情 */
+const openTraceDetail = (trace: Trace) => {
+  currentTrace.value = trace;
+  traceDetailVisible.value = true;
 };
 
 // API 调用函数
@@ -1188,6 +1463,351 @@ onMounted(() => {
   
   .form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Tab 切换栏 ===== */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  overflow: hidden;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #595959;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.25s;
+  user-select: none;
+}
+
+.tab-item:hover {
+  background: #f5f7fa;
+  color: #1890ff;
+}
+
+.tab-item.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  background: #f0f5ff;
+}
+
+/* ===== 交互链路追溯 - 工具栏 ===== */
+.trace-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+}
+
+.trace-search-input {
+  flex: 1;
+  max-width: 420px;
+}
+
+/* ===== 空状态 ===== */
+.trace-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  color: #8c8c8c;
+}
+
+.trace-empty .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.trace-empty p {
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ===== Trace 卡片列表 ===== */
+.trace-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.trace-card {
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trace-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.trace-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.trace-id-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #595959;
+  background: #f5f5f5;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.trace-id-text {
+  letter-spacing: 0.5px;
+}
+
+.trace-time {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.trace-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trace-prompt {
+  font-size: 14px;
+  color: #262626;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.trace-meta {
+  display: flex;
+  gap: 16px;
+}
+
+.trace-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.trace-card-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step-tag {
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.trace-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+/* ===== Trace 详情 Modal ===== */
+.trace-detail {
+  padding: 8px 0;
+}
+
+.trace-detail-header {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.trace-detail-header .detail-item {
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+}
+
+.trace-detail-header .detail-item label {
+  display: block;
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.trace-detail-header .detail-item span {
+  font-size: 14px;
+  color: #262626;
+}
+
+.mono-text {
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.trace-chain-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.trace-timeline {
+  padding-left: 8px;
+}
+
+.timeline-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: white;
+}
+
+.dot-init {
+  background: #8c8c8c;
+}
+.dot-environment-sense {
+  background: #13c2c2;
+}
+.dot-intent-analysis {
+  background: #1890ff;
+}
+.dot-safety-validation {
+  background: #fa8c16;
+}
+.dot-tool-execution {
+  background: #52c41a;
+}
+.dot-final-decision {
+  background: #722ed1;
+}
+
+.timeline-content {
+  padding-bottom: 16px;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.step-label-tag {
+  font-weight: 500;
+}
+
+.timeline-order {
+  font-size: 12px;
+  color: #bfbfbf;
+  font-family: 'Courier New', monospace;
+}
+
+.timeline-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-left: auto;
+}
+
+.timeline-data {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.step-data-pre {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #495057;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.trace-final-result {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.trace-final-result h4 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.trace-final-result .step-data-pre {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .trace-list {
+    grid-template-columns: 1fr;
+  }
+
+  .trace-toolbar {
+    flex-direction: column;
+  }
+
+  .trace-search-input {
+    max-width: none;
+  }
+
+  .trace-detail-header {
+    grid-template-columns: 1fr;
+  }
+
+  .tab-bar {
+    flex-direction: column;
   }
 }
 </style>

@@ -35,7 +35,9 @@ class OSSensor:
 
     @staticmethod
     def get_cpu_usage() -> Dict[str, Any]:
-        per_cpu = psutil.cpu_percent(interval=0.5, percpu=True)
+        # interval=0 表示非阻塞采样，返回自上次调用以来的 CPU 使用率
+        # 原先 interval=0.5 会硬阻塞 500ms，在 async 上下文中会卡死事件循环
+        per_cpu = psutil.cpu_percent(interval=0, percpu=True)
         overall = sum(per_cpu) / len(per_cpu) if per_cpu else 0.0
         result: Dict[str, Any] = {
             "overall": overall,
@@ -256,7 +258,7 @@ class OSSensor:
                 result["load_5min"] = load5
                 result["load_15min"] = load15
             except Exception:
-                cpu_pct = psutil.cpu_percent(interval=0.1)
+                cpu_pct = psutil.cpu_percent(interval=0)  # 非阻塞
                 result["load_1min"] = round(cpu_pct / 100 * 4, 2)
                 result["load_5min"] = 0.0
                 result["load_15min"] = 0.0

@@ -15,12 +15,12 @@
         <div class="header-actions">
           <a-space>
             <a-button type="default" @click="fetchSessions" :loading="loading">
-              <Icon icon="lucide:refresh-cw" size="16" />
-              刷新
+              <Icon icon="lucide:refresh-cw" size="16" style="margin-right: 4px;" />
+              <span>刷新</span>
             </a-button>
             <a-button type="primary" @click="createNewSession">
-              <Icon icon="lucide:plus" size="16" />
-              新建会话
+              <Icon icon="lucide:plus" size="16" style="margin-right: 4px;" />
+              <span>新建会话</span>
             </a-button>
           </a-space>
         </div>
@@ -575,6 +575,23 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0; /* 防止按钮组在窄屏下被压缩 */
+}
+
+/* 头部按钮美化：更明显的圆角 + 微阴影 */
+.session-container .header-actions :deep(.ant-btn) {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+}
+.session-container .header-actions :deep(.ant-btn:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+}
+.session-container .header-actions :deep(.ant-btn-primary) {
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.25);
 }
 
 /* 统计卡片 */

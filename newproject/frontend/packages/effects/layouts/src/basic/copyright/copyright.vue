@@ -12,9 +12,9 @@ defineOptions({
 });
 
 withDefaults(defineProps<Props>(), {
-  companyName: 'Bamboo',
+  companyName: 'aicloudops',
   companySiteLink: 'https://github.com/GoSimplicity',
-  date: '2024',
+  date: '2026',
   icp: '',
   icpLink: '',
 });

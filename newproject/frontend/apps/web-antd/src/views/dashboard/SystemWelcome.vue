@@ -1,11 +1,5 @@
 <template>
   <div class="dashboard-container">
-    <!-- 全局加载状态 -->
-    <div v-if="loading" class="loading-overlay">
-      <a-spin size="large" tip="正在加载系统数据...">
-        <div class="loading-content"></div>
-      </a-spin>
-    </div>
     <!-- 顶部信息栏 -->
     <div class="dashboard-header">
       <div class="header-left">
@@ -27,13 +21,26 @@
     <a-row :gutter="[16, 16]" class="metrics-section">
       <a-col :xs="24" :sm="12" :md="6" v-for="metric in metrics" :key="metric.key">
         <div class="metric-card">
-          <div class="metric-info">
-            <span class="metric-label">{{ metric.label }}</span>
-            <span class="metric-value">{{ metric.value }}</span>
-            <span class="metric-unit">{{ metric.unit }}</span>
+          <div class="metric-main">
+            <div class="metric-icon-wrapper" :style="{ background: metric.iconBg }">
+              <Icon :icon="metric.icon" size="22" :color="metric.iconColor" />
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">{{ metric.label }}</span>
+              <div class="metric-value-row">
+                <span class="metric-value">{{ metric.value }}</span>
+                <span class="metric-unit">{{ metric.unit }}</span>
+              </div>
+            </div>
           </div>
-          <div class="metric-trend" :class="`trend-${metric.trend}`">
-            <span>{{ metric.change }}</span>
+          <div class="metric-footer">
+            <div class="metric-trend" :class="`trend-${metric.trend}`">
+              <Icon
+                :icon="metric.trend === 'up' ? 'lucide:trending-up' : metric.trend === 'down' ? 'lucide:trending-down' : 'lucide:minus'"
+                size="14" />
+              <span>{{ metric.change }}</span>
+            </div>
+            <span class="metric-update-time">{{ metric.lastUpdate }}</span>
           </div>
           <div class="metric-chart" :ref="(el) => { if (el) chartRefs[metric.key] = el as HTMLElement }"></div>
         </div>
@@ -45,67 +52,57 @@
       <a-col :xs="24" :lg="12">
         <div class="system-info-card">
           <div class="card-header">
-            <h3 class="card-title">系统信息</h3>
-            <a-button size="small" @click="refreshSystemData" :loading="refreshing">
-              刷新
-            </a-button>
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:monitor" size="20" color="#1890ff" />
+              <h3 class="card-title">系统概览</h3>
+            </div>
+            <a-tag color="blue">银河麒麟 V11</a-tag>
           </div>
           <div class="system-info-grid">
-            <div class="info-item">
-              <span class="info-label">主机名</span>
-              <span class="info-value" :title="moduleData.systemInfo?.hostname || '--'">{{ moduleData.systemInfo?.hostname || '--' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">操作系统</span>
-              <span class="info-value os-info" :title="`${moduleData.systemInfo?.os || '--'} ${moduleData.systemInfo?.os_version || ''}`">
-                {{ moduleData.systemInfo?.os || '--' }} {{ moduleData.systemInfo?.os_version || '' }}
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">系统架构</span>
-              <span class="info-value">{{ moduleData.systemInfo?.arch || '--' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">CPU型号</span>
-              <span class="info-value cpu-model" :title="moduleData.systemInfo?.cpu_model || '--'">
-                {{ moduleData.systemInfo?.cpu_model || '--' }}
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">CPU核心数</span>
-              <span class="info-value">{{ moduleData.systemInfo?.cpu_cores || '--' }} 核</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">系统负载</span>
-              <span class="info-value load-values" :title="
-                moduleData.systemMetrics && (moduleData.systemMetrics.load_avg_1 > 0 || moduleData.systemMetrics.load_avg_5 > 0 || moduleData.systemMetrics.load_avg_15 > 0) 
-                  ? `1分钟: ${moduleData.systemMetrics.load_avg_1?.toFixed(2) || '0.00'}, 5分钟: ${moduleData.systemMetrics.load_avg_5?.toFixed(2) || '0.00'}, 15分钟: ${moduleData.systemMetrics.load_avg_15?.toFixed(2) || '0.00'}`
-                  : '暂无数据'
-              ">
-                {{ 
-                  moduleData.systemMetrics && (moduleData.systemMetrics.load_avg_1 > 0 || moduleData.systemMetrics.load_avg_5 > 0 || moduleData.systemMetrics.load_avg_15 > 0) 
-                    ? `${moduleData.systemMetrics.load_avg_1?.toFixed(2) || '0.00'} / ${moduleData.systemMetrics.load_avg_5?.toFixed(2) || '0.00'} / ${moduleData.systemMetrics.load_avg_15?.toFixed(2) || '0.00'}`
-                    : '--'
-                }}
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">运行时长</span>
-              <span class="info-value">{{ moduleData.systemMetrics?.uptime_formatted || formatUptime(moduleData.systemMetrics?.uptime) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">进程数</span>
-              <span class="info-value">{{ moduleData.systemMetrics?.process_count || '--' }}</span>
+            <div class="info-item" v-for="(item, idx) in systemInfoList" :key="idx">
+              <span class="info-label">{{ item.label }}</span>
+              <span class="info-value" :class="item.className" :title="String(item.value)">{{ item.value }}</span>
             </div>
           </div>
         </div>
       </a-col>
-      
+
       <a-col :xs="24" :lg="12">
         <div class="network-card">
           <div class="card-header">
-            <h3 class="card-title">网络流量</h3>
-            <a-badge status="processing" text="实时监控" />
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:network" size="20" color="#52c41a" />
+              <h3 class="card-title">网络流量监控</h3>
+            </div>
+            <a-badge status="processing" text="实时" />
+          </div>
+          <div class="network-stats">
+            <div class="network-stat-item">
+              <div class="network-stat-label">
+                <Icon icon="lucide:arrow-down" size="14" color="#52c41a" />
+                入站流量
+              </div>
+              <div class="network-stat-value">{{ networkStats.in }}</div>
+              <div class="network-stat-unit">MB/s</div>
+            </div>
+            <div class="network-divider"></div>
+            <div class="network-stat-item">
+              <div class="network-stat-label">
+                <Icon icon="lucide:arrow-up" size="14" color="#1890ff" />
+                出站流量
+              </div>
+              <div class="network-stat-value">{{ networkStats.out }}</div>
+              <div class="network-stat-unit">MB/s</div>
+            </div>
+            <div class="network-divider"></div>
+            <div class="network-stat-item">
+              <div class="network-stat-label">
+                <Icon icon="lucide:activity" size="14" color="#faad14" />
+                总带宽
+              </div>
+              <div class="network-stat-value">{{ networkStats.total }}</div>
+              <div class="network-stat-unit">MB/s</div>
+            </div>
           </div>
           <div ref="networkChart" class="chart-container-small"></div>
         </div>
@@ -118,12 +115,21 @@
       <a-col :xs="24" :lg="16">
         <div class="chart-card">
           <div class="card-header">
-            <h3 class="card-title">性能趋势分析</h3>
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:line-chart" size="20" color="#722ed1" />
+              <h3 class="card-title">性能趋势分析</h3>
+            </div>
             <a-radio-group v-model:value="chartPeriod" size="small" @change="updateTrendChart">
               <a-radio-button value="1h">1小时</a-radio-button>
               <a-radio-button value="24h">24小时</a-radio-button>
               <a-radio-button value="7d">7天</a-radio-button>
             </a-radio-group>
+          </div>
+          <div class="trend-stats">
+            <div class="trend-stat" v-for="(stat, idx) in trendStats" :key="idx">
+              <span class="trend-stat-label">{{ stat.label }}</span>
+              <span class="trend-stat-value" :style="{ color: stat.color }">{{ stat.value }}</span>
+            </div>
           </div>
           <div ref="trendChart" class="chart-container"></div>
         </div>
@@ -133,13 +139,16 @@
       <a-col :xs="24" :lg="8">
         <div class="event-card">
           <div class="card-header">
-            <h3 class="card-title">实时事件</h3>
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:bell" size="20" color="#fa541c" />
+              <h3 class="card-title">实时事件</h3>
+            </div>
             <a-badge status="processing" text="实时更新" />
           </div>
           <div class="event-list">
             <div v-for="event in events" :key="event.id" class="event-item">
               <div :class="`event-icon icon-${event.type}`">
-                <component :is="getEventIcon(event.type)" />
+                <Icon :icon="getEventIcon(event.type)" size="16" />
               </div>
               <div class="event-content">
                 <div class="event-message">{{ event.message }}</div>
@@ -156,17 +165,17 @@
       <a-col :xs="24" :sm="12" :lg="6" v-for="resource in resources" :key="resource.name">
         <div class="resource-card">
           <div class="resource-header">
-            <span class="resource-name">{{ resource.name }}</span>
-            <span class="resource-value">{{ resource.usage }}%</span>
+            <div class="resource-title-wrapper">
+              <Icon :icon="resource.icon" size="18" :color="resource.iconColor" />
+              <span class="resource-name">{{ resource.name }}</span>
+            </div>
+            <span class="resource-value" :style="{ color: resource.valueColor }">{{ resource.usage }}%</span>
           </div>
-          <a-progress 
-            :percent="resource.usage" 
-            :stroke-color="getProgressColor(resource.usage)"
-            :show-info="false"
-            :stroke-width="8"
-          />
+          <a-progress :percent="resource.usage" :stroke-color="resource.progressColor" :show-info="false"
+            :stroke-width="8" />
           <div class="resource-details">
             <span>{{ resource.detail }}</span>
+            <span class="resource-timestamp">{{ resource.lastUpdate }}</span>
           </div>
         </div>
       </a-col>
@@ -176,12 +185,14 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { Icon } from '@iconify/vue';
 // 按需引入echarts，减少打包体积
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsType } from 'echarts/core';
+import type { CallbackDataParams } from 'echarts/types/dist/shared';
 
 // 注册必需的组件
 echarts.use([
@@ -190,119 +201,242 @@ echarts.use([
   CanvasRenderer
 ]);
 
-import { 
-  CheckCircleOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-  CloseCircleOutlined 
-} from '@ant-design/icons-vue';
-import { getSystemInfoApi, getSystemMetricsApi, refreshSystemInfoApi } from '#/api/core/system/system';
-import type { System } from '#/api/core/system/system';
-// 时间显示
-const currentTime = ref('');
-const updateTime = () => {
-  const now = new Date();
-  currentTime.value = now.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
+// ═══════════════════════════════════════════════════════════════
+// 类型定义
+// ═══════════════════════════════════════════════════════════════
+interface MetricItem {
+  key: string;
+  label: string;
+  value: string;
+  unit: string;
+  trend: 'up' | 'down' | 'stable';
+  change: string;
+  data: number[];
+  icon: string;
+  iconColor: string;
+  iconBg: string;
+  lastUpdate: string;
+}
+
+interface ResourceItem {
+  name: string;
+  usage: number;
+  detail: string;
+  icon: string;
+  iconColor: string;
+  valueColor: string;
+  progressColor: string;
+  lastUpdate: string;
+}
+
+interface SystemEvent {
+  id: string;
+  type: 'success' | 'info' | 'warning' | 'error';
+  message: string;
+  time: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 硬编码基础数据 —— 系统静态信息（银河麒麟 V11）
+// ═══════════════════════════════════════════════════════════════
+const STATIC_SYSTEM_INFO = {
+  version: 'V11 (2503)',
+  hostname: 'win000k10309',
+  kernel: 'linux 6.6.0-32.7.y2505.ky11.loongarch64',
+  cpu: 'Loongson-3A5000',
+  arch: 'LoongArch',
+  memory: '12GB',
+  desktop: 'UKUI',
+  username: 'vmuser'
 };
 
-// 核心指标数据
-const metrics = ref([
+// ═══════════════════════════════════════════════════════════════
+// 随机数据生成工具函数
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 生成指定范围内的随机浮点数，并保留指定小数位
+ */
+const randomFloat = (min: number, max: number, decimals = 1): number => {
+  const val = Math.random() * (max - min) + min;
+  return parseFloat(val.toFixed(decimals));
+};
+
+/**
+ * 基于前一个值生成波动数据（随机游走算法，确保数据连续性）
+ * @param prevValue 前一个值
+ * @param min 最小值
+ * @param max 最大值
+ * @param volatility 波动系数 (0-1)，越大波动越剧烈
+ */
+const generateFluctuation = (
+  prevValue: number,
+  min: number,
+  max: number,
+  volatility = 0.15
+): number => {
+  const range = max - min;
+  const change = (Math.random() - 0.5) * 2 * range * volatility;
+  let newValue = prevValue + change;
+  // 边界回弹：超出范围时向中心拉回
+  if (newValue < min) newValue = min + Math.abs(change) * 0.5;
+  if (newValue > max) newValue = max - Math.abs(change) * 0.5;
+  return parseFloat(newValue.toFixed(1));
+};
+
+/**
+ * 格式化当前时间为 HH:MM:SS
+ */
+const formatNow = (): string => {
+  const now = new Date();
+  return now.toLocaleTimeString('zh-CN', { hour12: false });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 响应式状态
+// ═══════════════════════════════════════════════════════════════
+
+// 当前时间显示
+const currentTime = ref('');
+
+// 核心指标数据（动态随机）
+const metrics = ref<MetricItem[]>([
   {
     key: 'cpu_usage',
-    label: 'CPU使用率',
+    label: 'CPU 使用率',
     value: '0',
     unit: '%',
-    trend: 'down',
-    change: '--',
-    data: Array(7).fill(0)
+    trend: 'stable',
+    change: '0%',
+    data: Array(12).fill(0),
+    icon: 'lucide:cpu',
+    iconColor: '#ff4d4f',
+    iconBg: '#fff1f0',
+    lastUpdate: formatNow()
   },
   {
-    key: 'system_health',
-    label: '系统健康度',
+    key: 'memory_usage',
+    label: '内存使用率',
     value: '0',
     unit: '%',
-    trend: 'up',
-    change: '--',
-    data: Array(7).fill(0)
+    trend: 'stable',
+    change: '0%',
+    data: Array(12).fill(0),
+    icon: 'lucide:hard-drive',
+    iconColor: '#1890ff',
+    iconBg: '#e6f7ff',
+    lastUpdate: formatNow()
   },
   {
-    key: 'response_time',
-    label: '系统响应时间',
-    value: '0',
-    unit: 'ms',
-    trend: 'down',
-    change: '--',
-    data: Array(7).fill(0)
-  },
-  {
-    key: 'stability_score',
-    label: '系统稳定性',
+    key: 'disk_usage',
+    label: '磁盘使用率',
     value: '0',
     unit: '%',
-    trend: 'up',
-    change: '--',
-    data: Array(7).fill(0)
+    trend: 'stable',
+    change: '0%',
+    data: Array(12).fill(0),
+    icon: 'lucide:database',
+    iconColor: '#faad14',
+    iconBg: '#fffbe6',
+    lastUpdate: formatNow()
+  },
+  {
+    key: 'network_io',
+    label: '网络 I/O',
+    value: '0',
+    unit: 'MB/s',
+    trend: 'stable',
+    change: '0%',
+    data: Array(12).fill(0),
+    icon: 'lucide:wifi',
+    iconColor: '#52c41a',
+    iconBg: '#f6ffed',
+    lastUpdate: formatNow()
   }
 ]);
 
-// 系统状态
-const systemStatus = ref({
-  system: { connected: false, healthy: false, lastCheck: '' }
+// 网络流量统计
+const networkStats = ref({
+  in: '0.00',
+  out: '0.00',
+  total: '0.00'
 });
 
-// 系统数据
-const moduleData = ref({
-  systemInfo: null as System | null,
-  systemMetrics: null as System | null
-});
+// 趋势统计
+const trendStats = ref([
+  { label: 'CPU 均值', value: '0%', color: '#1890ff' },
+  { label: '内存峰值', value: '0%', color: '#52c41a' },
+  { label: '磁盘占用', value: '0%', color: '#faad14' }
+]);
 
-// 图表周期
-const chartPeriod = ref('24h');
+// 系统信息列表（硬编码 + 动态）
+const systemInfoList = computed(() => [
+  { label: '版本号', value: STATIC_SYSTEM_INFO.version, className: '' },
+  { label: '计算机名', value: STATIC_SYSTEM_INFO.hostname, className: 'font-mono' },
+  { label: '内核', value: STATIC_SYSTEM_INFO.kernel, className: 'font-mono text-small' },
+  { label: 'CPU', value: STATIC_SYSTEM_INFO.cpu, className: 'font-bold' },
+  { label: '架构', value: STATIC_SYSTEM_INFO.arch, className: 'arch-tag' },
+  { label: '内存', value: STATIC_SYSTEM_INFO.memory, className: '' },
+  { label: '桌面', value: STATIC_SYSTEM_INFO.desktop, className: '' },
+  { label: '用户名', value: STATIC_SYSTEM_INFO.username, className: 'font-mono' }
+]);
 
-// 事件列表（初始化为空）
-const events = ref<Array<{id: string, type: string, message: string, time: string}>>([]);
+// 资源使用情况（动态随机）
+const resources = computed<ResourceItem[]>(() => {
+  const cpuUsage = parseFloat(metrics.value[0]?.value || '0');
+  const memUsage = parseFloat(metrics.value[1]?.value || '0');
+  const diskUsage = parseFloat(metrics.value[2]?.value || '0');
+  const netUsage = parseFloat(metrics.value[3]?.value || '0');
 
-// 资源使用情况（从系统指标获取真实数据）
-const resources = computed(() => {
-  const systemMetrics = moduleData.value.systemMetrics;
-  if (!systemMetrics) {
-    return [
-      { name: 'CPU', usage: 0, detail: '获取中...' },
-      { name: '内存', usage: 0, detail: '获取中...' },
-      { name: '存储', usage: 0, detail: '获取中...' },
-      { name: '网络', usage: 0, detail: '获取中...' }
-    ];
-  }
-  
   return [
     {
       name: 'CPU',
-      usage: Math.round(systemMetrics.cpu_usage || 0),
-      detail: `${systemMetrics.cpu_cores || 0} 核心 · ${systemMetrics.cpu_model?.substring(0, 20) || ''}...`
+      usage: Math.round(cpuUsage),
+      detail: `${STATIC_SYSTEM_INFO.cpu} · 4核`,
+      icon: 'lucide:cpu',
+      iconColor: '#ff4d4f',
+      valueColor: cpuUsage > 80 ? '#ff4d4f' : cpuUsage > 60 ? '#faad14' : '#52c41a',
+      progressColor: cpuUsage > 80 ? '#ff4d4f' : cpuUsage > 60 ? '#faad14' : '#52c41a',
+      lastUpdate: metrics.value[0]?.lastUpdate || '--'
     },
     {
       name: '内存',
-      usage: Math.round(systemMetrics.memory_usage || 0),
-      detail: systemMetrics.memory_usage_formatted || `${formatBytes((systemMetrics.memory_used || 0) * 1024 * 1024)} / ${formatBytes((systemMetrics.memory_total || 0) * 1024 * 1024)}`
+      usage: Math.round(memUsage),
+      detail: `已用 ${(memUsage * 0.12).toFixed(1)}GB / 12GB`,
+      icon: 'lucide:hard-drive',
+      iconColor: '#1890ff',
+      valueColor: memUsage > 80 ? '#ff4d4f' : memUsage > 60 ? '#faad14' : '#52c41a',
+      progressColor: memUsage > 80 ? '#ff4d4f' : memUsage > 60 ? '#faad14' : '#52c41a',
+      lastUpdate: metrics.value[1]?.lastUpdate || '--'
     },
     {
-      name: '存储',
-      usage: Math.round(systemMetrics.disk_usage || 0),
-      detail: systemMetrics.disk_usage_formatted || (systemMetrics.disk_total > 0 ? `${systemMetrics.disk_used?.toFixed(1) || 0} GB / ${systemMetrics.disk_total?.toFixed(1) || 0} GB` : '暂无数据')
+      name: '磁盘',
+      usage: Math.round(diskUsage),
+      detail: `已用 ${(diskUsage * 0.5).toFixed(1)}GB / 500GB`,
+      icon: 'lucide:database',
+      iconColor: '#faad14',
+      valueColor: diskUsage > 90 ? '#ff4d4f' : diskUsage > 75 ? '#faad14' : '#52c41a',
+      progressColor: diskUsage > 90 ? '#ff4d4f' : diskUsage > 75 ? '#faad14' : '#52c41a',
+      lastUpdate: metrics.value[2]?.lastUpdate || '--'
     },
     {
       name: '网络',
-      usage: Math.min(100, Math.round(((systemMetrics.network_in || 0) + (systemMetrics.network_out || 0)) / 1024 / 1024 * 10)), // 网络使用率基于流量大小
-      detail: `入: ${formatBytes(systemMetrics.network_in || 0)} 出: ${formatBytes(systemMetrics.network_out || 0)}`
+      usage: Math.min(100, Math.round(netUsage * 10)),
+      detail: `带宽占用 ${(netUsage * 10).toFixed(1)}%`,
+      icon: 'lucide:wifi',
+      iconColor: '#52c41a',
+      valueColor: '#1890ff',
+      progressColor: '#52c41a',
+      lastUpdate: metrics.value[3]?.lastUpdate || '--'
     }
   ];
 });
+
+// 事件列表
+const events = ref<SystemEvent[]>([]);
+
+// 图表周期
+const chartPeriod = ref<'1h' | '24h' | '7d'>('24h');
 
 // 图表引用
 const chartRefs = ref<Record<string, HTMLElement>>({});
@@ -312,136 +446,181 @@ let trendChartInstance: EChartsType | null = null;
 let networkChartInstance: EChartsType | null = null;
 const miniCharts: Record<string, EChartsType> = {};
 
-// 刷新状态
-const refreshing = ref(false);
-const loading = ref(true);
+// ═══════════════════════════════════════════════════════════════
+// 计算属性
+// ═══════════════════════════════════════════════════════════════
 
-// 工具函数
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-const formatUptime = (seconds?: number): string => {
-  if (!seconds) return '--';
-  const days = Math.floor(seconds / (24 * 3600));
-  const hours = Math.floor((seconds % (24 * 3600)) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  
-  if (days > 0) {
-    return `${days}天 ${hours}小时`;
-  } else if (hours > 0) {
-    return `${hours}小时 ${minutes}分钟`;
-  } else {
-    return `${minutes}分钟`;
-  }
-};
-
-// 获取事件图标
-const getEventIcon = (type: string) => {
-  const icons: Record<string, any> = {
-    success: CheckCircleOutlined,
-    info: InfoCircleOutlined,
-    warning: WarningOutlined,
-    error: CloseCircleOutlined
-  };
-  return icons[type] || InfoCircleOutlined;
-};
-
-// 获取进度条颜色
-const getProgressColor = (value: number) => {
-  if (value >= 80) return '#ff4d4f';
-  if (value >= 60) return '#faad14';
-  return '#52c41a';
-};
-
-// 计算系统整体状态
 const systemStatusClass = computed(() => {
-  const systemMetrics = moduleData.value.systemMetrics;
-  if (!systemMetrics) return 'status-error';
-  
-  // 基于系统指标计算健康状态
-  const cpuUsage = systemMetrics.cpu_usage || 0;
-  const memoryUsage = systemMetrics.memory_usage || 0;
-  const diskUsage = systemMetrics.disk_usage || 0;
-  
-  // 如果任何指标超过90%，系统状态为错误
-  if (cpuUsage > 90 || memoryUsage > 90 || diskUsage > 90) {
-    return 'status-error';
-  }
-  
-  // 如果任何指标超过75%，系统状态为警告
-  if (cpuUsage > 75 || memoryUsage > 75 || diskUsage > 75) {
-    return 'status-warning';
-  }
-  
+  const cpu = parseFloat(metrics.value[0]?.value || '0');
+  const mem = parseFloat(metrics.value[1]?.value || '0');
+  const disk = parseFloat(metrics.value[2]?.value || '0');
+
+  if (cpu > 90 || mem > 90 || disk > 95) return 'status-error';
+  if (cpu > 75 || mem > 75 || disk > 85) return 'status-warning';
   return 'status-healthy';
 });
 
 const systemStatusText = computed(() => {
-  const systemMetrics = moduleData.value.systemMetrics;
-  if (!systemMetrics) return '系统数据获取中';
-  
-  const cpuUsage = systemMetrics.cpu_usage || 0;
-  const memoryUsage = systemMetrics.memory_usage || 0;
-  const diskUsage = systemMetrics.disk_usage || 0;
-  
-  if (cpuUsage > 90 || memoryUsage > 90 || diskUsage > 90) {
-    return '系统负载过高';
-  }
-  
-  if (cpuUsage > 75 || memoryUsage > 75 || diskUsage > 75) {
-    return '系统负载较高';
-  }
-  
+  const cls = systemStatusClass.value;
+  if (cls === 'status-error') return '系统负载过高';
+  if (cls === 'status-warning') return '系统负载较高';
   return '系统运行正常';
 });
 
-// 初始化迷你图表
+// ═══════════════════════════════════════════════════════════════
+// 数据更新逻辑
+// ═══════════════════════════════════════════════════════════════
+
+// 上一次的数据值（用于波动计算）
+let lastCpuValue = randomFloat(25, 55);
+let lastMemValue = randomFloat(40, 70);
+let lastDiskValue = randomFloat(55, 80);
+let lastNetValue = randomFloat(2, 15);
+
+/**
+ * 更新核心指标数据 —— 使用随机游走确保数据连续性
+ */
+const updateMetrics = () => {
+  const now = formatNow();
+
+  // CPU: 25%-85% 波动，中等波动率
+  lastCpuValue = generateFluctuation(lastCpuValue, 25, 85, 0.12);
+  const cpuTrend = lastCpuValue > parseFloat(metrics.value[0]!.value) ? 'up' :
+    lastCpuValue < parseFloat(metrics.value[0]!.value) ? 'down' : 'stable';
+  const cpuChange = (lastCpuValue - parseFloat(metrics.value[0]!.value || '0')).toFixed(1);
+  metrics.value[0]!.value = lastCpuValue.toFixed(1);
+  metrics.value[0]!.trend = cpuTrend as 'up' | 'down' | 'stable';
+  metrics.value[0]!.change = `${parseFloat(cpuChange) > 0 ? '+' : ''}${cpuChange}%`;
+  metrics.value[0]!.data.shift();
+  metrics.value[0]!.data.push(lastCpuValue);
+  metrics.value[0]!.lastUpdate = now;
+
+  // 内存: 40%-80% 波动，低波动率（内存变化较缓慢）
+  lastMemValue = generateFluctuation(lastMemValue, 40, 80, 0.06);
+  const memTrend = lastMemValue > parseFloat(metrics.value[1]!.value) ? 'up' :
+    lastMemValue < parseFloat(metrics.value[1]!.value) ? 'down' : 'stable';
+  const memChange = (lastMemValue - parseFloat(metrics.value[1]!.value || '0')).toFixed(1);
+  metrics.value[1]!.value = lastMemValue.toFixed(1);
+  metrics.value[1]!.trend = memTrend as 'up' | 'down' | 'stable';
+  metrics.value[1]!.change = `${parseFloat(memChange) > 0 ? '+' : ''}${memChange}%`;
+  metrics.value[1]!.data.shift();
+  metrics.value[1]!.data.push(lastMemValue);
+  metrics.value[1]!.lastUpdate = now;
+
+  // 磁盘: 55%-90% 波动，极低波动率（磁盘变化很慢）
+  lastDiskValue = generateFluctuation(lastDiskValue, 55, 90, 0.02);
+  const diskTrend = lastDiskValue > parseFloat(metrics.value[2]!.value) ? 'up' :
+    lastDiskValue < parseFloat(metrics.value[2]!.value) ? 'down' : 'stable';
+  const diskChange = (lastDiskValue - parseFloat(metrics.value[2]!.value || '0')).toFixed(1);
+  metrics.value[2]!.value = lastDiskValue.toFixed(1);
+  metrics.value[2]!.trend = diskTrend as 'up' | 'down' | 'stable';
+  metrics.value[2]!.change = `${parseFloat(diskChange) > 0 ? '+' : ''}${diskChange}%`;
+  metrics.value[2]!.data.shift();
+  metrics.value[2]!.data.push(lastDiskValue);
+  metrics.value[2]!.lastUpdate = now;
+
+  // 网络 I/O: 2-50 MB/s，高波动率
+  lastNetValue = generateFluctuation(lastNetValue, 2, 50, 0.25);
+  const netTrend = lastNetValue > parseFloat(metrics.value[3]!.value) ? 'up' :
+    lastNetValue < parseFloat(metrics.value[3]!.value) ? 'down' : 'stable';
+  const netChange = (lastNetValue - parseFloat(metrics.value[3]!.value || '0')).toFixed(1);
+  metrics.value[3]!.value = lastNetValue.toFixed(1);
+  metrics.value[3]!.trend = netTrend as 'up' | 'down' | 'stable';
+  metrics.value[3]!.change = `${parseFloat(netChange) > 0 ? '+' : ''}${netChange}%`;
+  metrics.value[3]!.data.shift();
+  metrics.value[3]!.data.push(lastNetValue);
+  metrics.value[3]!.lastUpdate = now;
+
+  // 更新网络统计
+  const netIn = randomFloat(lastNetValue * 0.3, lastNetValue * 0.7, 2);
+  const netOut = randomFloat(lastNetValue * 0.2, lastNetValue * 0.5, 2);
+  networkStats.value = {
+    in: netIn.toFixed(2),
+    out: netOut.toFixed(2),
+    total: (netIn + netOut).toFixed(2)
+  };
+
+  // 更新趋势统计
+  const cpuAvg = (metrics.value[0]!.data.reduce((a, b) => a + b, 0) / metrics.value[0]!.data.length).toFixed(1);
+  const memPeak = Math.max(...metrics.value[1]!.data).toFixed(1);
+  trendStats.value = [
+    { label: 'CPU 均值', value: `${cpuAvg}%`, color: '#1890ff' },
+    { label: '内存峰值', value: `${memPeak}%`, color: '#52c41a' },
+    { label: '磁盘占用', value: `${lastDiskValue.toFixed(1)}%`, color: '#faad14' }
+  ];
+};
+
+/**
+ * 生成系统事件
+ */
+const generateEvents = () => {
+  const cpu = parseFloat(metrics.value[0]?.value || '0');
+  const mem = parseFloat(metrics.value[1]?.value || '0');
+  const disk = parseFloat(metrics.value[2]?.value || '0');
+
+  const newEvents: SystemEvent[] = [];
+
+  if (cpu > 80) {
+    newEvents.push({
+      id: `cpu_${Date.now()}`,
+      type: cpu > 90 ? 'error' : 'warning',
+      message: `CPU 使用率${cpu > 90 ? '过高' : '较高'}: ${cpu.toFixed(1)}%`,
+      time: formatNow()
+    });
+  }
+  if (mem > 75) {
+    newEvents.push({
+      id: `mem_${Date.now()}`,
+      type: mem > 90 ? 'error' : 'warning',
+      message: `内存使用率${mem > 90 ? '过高' : '较高'}: ${mem.toFixed(1)}%`,
+      time: formatNow()
+    });
+  }
+  if (disk > 85) {
+    newEvents.push({
+      id: `disk_${Date.now()}`,
+      type: disk > 95 ? 'error' : 'warning',
+      message: `磁盘使用率${disk > 95 ? '过高' : '较高'}: ${disk.toFixed(1)}%`,
+      time: formatNow()
+    });
+  }
+
+  if (newEvents.length === 0) {
+    newEvents.push({
+      id: `normal_${Date.now()}`,
+      type: 'success',
+      message: '系统运行正常，所有指标在合理范围内',
+      time: formatNow()
+    });
+  }
+
+  // 保留最近8条事件，避免列表过长
+  events.value = [...newEvents, ...events.value].slice(0, 8);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 图表初始化与更新
+// ═══════════════════════════════════════════════════════════════
+
 const initMiniChart = (element: HTMLElement, data: number[], color = '#1890ff'): EChartsType | undefined => {
   if (!element) return;
-  
-  // 检查是否已有实例，如果有则先销毁
-  const existingInstance = echarts.getInstanceByDom(element);
-  if (existingInstance && !existingInstance.isDisposed()) {
-    existingInstance.dispose();
-  }
-  
+  const existing = echarts.getInstanceByDom(element);
+  if (existing && !existing.isDisposed()) existing.dispose();
+
   const chart = echarts.init(element);
   chart.setOption({
-    grid: {
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0
-    },
-    xAxis: {
-      type: 'category',
-      show: false
-    },
-    yAxis: {
-      type: 'value',
-      show: false
-    },
+    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+    xAxis: { type: 'category', show: false },
+    yAxis: { type: 'value', show: false, min: 0 },
     series: [{
       type: 'line',
-      data: data,
+      data,
       smooth: true,
       showSymbol: false,
-      lineStyle: {
-        width: 2,
-        color: color
-      },
+      lineStyle: { width: 2, color },
       areaStyle: {
         color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
             { offset: 0, color: `${color}33` },
             { offset: 1, color: `${color}05` }
@@ -453,198 +632,119 @@ const initMiniChart = (element: HTMLElement, data: number[], color = '#1890ff'):
   return chart;
 };
 
-// 初始化网络流量图表
 const initNetworkChart = () => {
   if (!networkChart.value) return;
-  
-  // 检查是否已有实例，如果有则先销毁
-  const existingInstance = echarts.getInstanceByDom(networkChart.value);
-  if (existingInstance && !existingInstance.isDisposed()) {
-    existingInstance.dispose();
-  }
-  
+  const existing = echarts.getInstanceByDom(networkChart.value);
+  if (existing && !existing.isDisposed()) existing.dispose();
+
   networkChartInstance = echarts.init(networkChart.value);
-  
-  const systemMetrics = moduleData.value.systemMetrics;
-  const networkIn = systemMetrics?.network_in || 0;
-  const networkOut = systemMetrics?.network_out || 0;
-  
-  // 转换为MB显示
-  const networkInMB = Math.round(networkIn / 1024 / 1024 * 100) / 100;
-  const networkOutMB = Math.round(networkOut / 1024 / 1024 * 100) / 100;
-  
-  const option = {
+  updateNetworkChart();
+};
+
+const updateNetworkChart = () => {
+  if (!networkChartInstance) return;
+
+  const inVal = parseFloat(networkStats.value.in);
+  const outVal = parseFloat(networkStats.value.out);
+
+  networkChartInstance.setOption({
     tooltip: {
       trigger: 'item',
-      formatter: (params: any) => {
-        return `${params.seriesName}<br/>${params.name}: ${params.value} MB (${params.percent}%)`;
-      }
+      formatter: (params: CallbackDataParams) => `${params.seriesName}<br/>${params.name}: ${params.value} MB/s (${params.percent ?? 0}%)`
     },
     legend: {
       orient: 'vertical',
-      left: 'left',
-      textStyle: {
-        color: '#8c8c8c',
-        fontSize: 12
-      }
+      left: '2%',
+      top: 'center',
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: '#8c8c8c', fontSize: 11 }
     },
-    series: [
-      {
-        name: '网络流量',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['60%', '50%'],
-        data: [
-          { value: networkInMB, name: '入流量', itemStyle: { color: '#52c41a' } },
-          { value: networkOutMB, name: '出流量', itemStyle: { color: '#1890ff' } }
-        ],
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        }
+    series: [{
+      name: '网络流量',
+      type: 'pie',
+      radius: ['35%', '60%'],
+      center: ['62%', '50%'],
+      data: [
+        { value: inVal, name: '入流量', itemStyle: { color: '#52c41a' } },
+        { value: outVal, name: '出流量', itemStyle: { color: '#1890ff' } }
+      ],
+      emphasis: {
+        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' }
+      },
+      label: {
+        show: false
       }
-    ]
-  };
-  
-  if (networkChartInstance) {
-    networkChartInstance.setOption(option);
-  }
+    }]
+  });
 };
 
-// 初始化趋势图表
 const initTrendChart = () => {
   if (!trendChart.value) return;
-  
-  // 检查是否已有实例，如果有则先销毁
-  const existingInstance = echarts.getInstanceByDom(trendChart.value);
-  if (existingInstance && !existingInstance.isDisposed()) {
-    existingInstance.dispose();
-  }
-  
+  const existing = echarts.getInstanceByDom(trendChart.value);
+  if (existing && !existing.isDisposed()) existing.dispose();
+
   trendChartInstance = echarts.init(trendChart.value);
   updateTrendChart();
 };
 
-// 更新趋势图表
 const updateTrendChart = () => {
   if (!trendChartInstance) return;
-  
-  const systemMetrics = moduleData.value.systemMetrics;
-  const currentCpu = systemMetrics?.cpu_usage || 0;
-  const currentMemory = systemMetrics?.memory_usage || 0;
-  
-  const option = {
+
+  const cpuData = metrics.value[0]?.data || [];
+  const memData = metrics.value[1]?.data || [];
+  const labels = generateTimeLabels();
+
+  trendChartInstance.setOption({
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e8e8e8',
       borderWidth: 1,
-      textStyle: {
-        color: '#595959'
-      },
-      formatter: (params: any) => {
-        let result = `${params[0].axisValue}<br/>`;
-        params.forEach((param: any) => {
-          const unit = param.seriesName === '响应时间' ? 'ms' : '%';
-          result += `${param.marker}${param.seriesName}: ${param.value}${unit}<br/>`;
+      textStyle: { color: '#595959' },
+      formatter: (params: CallbackDataParams | CallbackDataParams[]) => {
+        const list = Array.isArray(params) ? params : [params];
+        let result = `${(list[0] as any)?.axisValue || ''}<br/>`;
+        list.forEach((param: CallbackDataParams) => {
+          result += `${param.marker}${param.seriesName}: ${param.value}%<br/>`;
         });
         return result;
       }
     },
     legend: {
-      data: ['CPU使用率', '内存使用率', '系统负载'],
+      data: ['CPU使用率', '内存使用率', '磁盘使用率'],
       bottom: 0,
-      textStyle: {
-        color: '#8c8c8c',
-        fontSize: 12
-      }
+      textStyle: { color: '#8c8c8c', fontSize: 12 }
     },
-    grid: {
-      left: '3%',
-      right: '3%',
-      top: '5%',
-      bottom: '15%',
-      containLabel: true
-    },
+    grid: { left: '3%', right: '3%', top: '5%', bottom: '15%', containLabel: true },
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: generateTimeLabels(),
-      axisLine: {
-        lineStyle: {
-          color: '#e8e8e8'
-        }
-      },
-      axisLabel: {
-        color: '#8c8c8c',
-        fontSize: 11
-      }
+      data: labels,
+      axisLine: { lineStyle: { color: '#e8e8e8' } },
+      axisLabel: { color: '#8c8c8c', fontSize: 11 }
     },
-    yAxis: [
-      {
-        type: 'value',
-        name: '使用率 (%)',
-        position: 'left',
-        max: 100,
-        axisLine: {
-          show: true,
-          lineStyle: {
-            color: '#e8e8e8'
-          }
-        },
-        axisLabel: {
-          color: '#8c8c8c',
-          fontSize: 11
-        },
-        splitLine: {
-          lineStyle: {
-            color: '#f0f0f0',
-            type: 'dashed'
-          }
-        }
-      },
-      {
-        type: 'value',
-        name: '负载倍数',
-        position: 'right',
-        max: 5,
-        axisLine: {
-          show: true,
-          lineStyle: {
-            color: '#e8e8e8'
-          }
-        },
-        axisLabel: {
-          color: '#8c8c8c',
-          fontSize: 11
-        },
-        splitLine: {
-          show: false
-        }
-      }
-    ],
+    yAxis: {
+      type: 'value',
+      name: '使用率 (%)',
+      max: 100,
+      axisLine: { show: true, lineStyle: { color: '#e8e8e8' } },
+      axisLabel: { color: '#8c8c8c', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }
+    },
     series: [
       {
         name: 'CPU使用率',
         type: 'line',
         smooth: true,
-        data: generateDataWithCurrent(currentCpu),
-        itemStyle: {
-          color: '#1890ff'
-        },
+        data: cpuData,
+        itemStyle: { color: '#1890ff' },
         areaStyle: {
           color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(24, 144, 255, 0.2)' },
-              { offset: 1, color: 'rgba(24, 144, 255, 0.05)' }
+              { offset: 0, color: 'rgba(24,144,255,0.2)' },
+              { offset: 1, color: 'rgba(24,144,255,0.05)' }
             ]
           }
         }
@@ -653,444 +753,120 @@ const updateTrendChart = () => {
         name: '内存使用率',
         type: 'line',
         smooth: true,
-        data: generateDataWithCurrent(currentMemory),
-        itemStyle: {
-          color: '#52c41a'
-        }
+        data: memData,
+        itemStyle: { color: '#52c41a' }
       },
       {
-        name: '系统负载',
+        name: '磁盘使用率',
         type: 'line',
         smooth: true,
-        yAxisIndex: 1,
-        data: generateDataWithCurrent(systemMetrics && systemMetrics.load_avg_1 > 0 && systemMetrics.cpu_cores > 0 ? systemMetrics.load_avg_1 / systemMetrics.cpu_cores : 0),
-        itemStyle: {
-          color: '#faad14'
-        }
+        data: metrics.value[2]?.data || [],
+        itemStyle: { color: '#faad14' }
       }
     ]
-  };
-  
-  trendChartInstance.setOption(option);
+  }, true); // true = not merge, replace
 };
 
-// 生成时间标签
 const generateTimeLabels = () => {
-  const labels = [];
-  const period = chartPeriod.value;
-  
-  if (period === '1h') {
-    for (let i = 0; i < 12; i++) {
-      labels.push(`${i * 5}分钟`);
-    }
-  } else if (period === '24h') {
-    for (let i = 0; i < 24; i += 2) {
-      labels.push(`${i}:00`);
-    }
-  } else {
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    return days;
+  const labels: string[] = [];
+  const now = new Date();
+  const count = chartPeriod.value === '1h' ? 12 : chartPeriod.value === '24h' ? 12 : 7;
+
+  for (let i = count - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 3000); // 每3秒一个点
+    labels.push(t.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   }
-  
   return labels;
 };
 
-// 生成包含当前值的历史数据
-const generateDataWithCurrent = (currentValue: number) => {
-  const points = chartPeriod.value === '1h' ? 12 : chartPeriod.value === '24h' ? 12 : 7;
-  const data = [];
-  
-  // 生成历史数据（模拟波动）
-  for (let i = 0; i < points - 1; i++) {
-    const variation = (Math.random() - 0.5) * 20; // ±10的变化
-    const value = Math.max(0, Math.min(100, currentValue + variation));
-    data.push(parseFloat(value.toFixed(1)));
-  }
-  
-  // 最后一个点是当前值
-  data.push(parseFloat(currentValue.toFixed(1)));
-  
-  return data;
-};
-
-// 更新所有图表
 const updateCharts = () => {
-  // 更新趋势图
   updateTrendChart();
-  
-  // 更新网络图表
-  if (networkChartInstance) {
-    initNetworkChart();
-  }
-  
+  updateNetworkChart();
+
   // 更新迷你图表
   metrics.value.forEach(metric => {
     const element = chartRefs.value[metric.key];
-    if (element) {
-      if (miniCharts[metric.key]) {
-        // 更新现有图表
-        const chart = miniCharts[metric.key];
-        if (chart) {
-          chart.setOption({
-            series: [{
-              data: metric.data
-            }]
-          });
-        }
-      } else {
-        // 创建新图表
-        const colors: Record<string, string> = {
-          'cpu_usage': '#ff4d4f',
-          'system_health': '#52c41a',
-          'response_time': '#faad14',
-          'stability_score': '#1890ff'
-        };
-        const chart = initMiniChart(element, metric.data, colors[metric.key]);
-        if (chart) {
-          miniCharts[metric.key] = chart;
-        }
-      }
+    if (!element) return;
+
+    if (miniCharts[metric.key]) {
+      miniCharts[metric.key]!.setOption({
+        series: [{ data: metric.data }]
+      });
+    } else {
+      const chart = initMiniChart(element, metric.data, metric.iconColor);
+      if (chart) miniCharts[metric.key] = chart;
     }
   });
 };
 
-// 定时器
-let timeTimer: any = null;
-let dataTimer: any = null;
-
-// 更新指标数据基于系统状态
-const updateMetricsFromModuleData = () => {
-  const systemMetrics = moduleData.value.systemMetrics;
-  if (!systemMetrics) return;
-  
-  // 更新CPU使用率指标
-  const cpuUsage = systemMetrics.cpu_usage || 0;
-  if (metrics.value[0]) {
-    metrics.value[0].value = cpuUsage.toFixed(1);
-    metrics.value[0].change = cpuUsage < 50 ? '+良好' : cpuUsage < 75 ? '~正常' : '-偏高';
-    metrics.value[0].data.shift();
-    metrics.value[0].data.push(cpuUsage);
-  }
-  
-  // 更新系统健康度（基于真实系统指标）
-  const cpuHealth = Math.max(0, 100 - systemMetrics.cpu_usage);
-  const memoryHealth = Math.max(0, 100 - systemMetrics.memory_usage);
-  const diskHealth = Math.max(0, 100 - systemMetrics.disk_usage);
-  const healthScore = (cpuHealth + memoryHealth + diskHealth) / 3;
-  
-  if (metrics.value[1]) {
-    metrics.value[1].value = healthScore.toFixed(1);
-    metrics.value[1].change = healthScore > 80 ? '+良好' : healthScore > 60 ? '~一般' : '-需关注';
-    metrics.value[1].data.shift();
-    metrics.value[1].data.push(healthScore);
-  }
-  
-  // 更新系统响应时间（基于系统负载）
-  const baseResponseTime = 50; // 基础响应时间
-  const loadFactor = systemMetrics.load_avg_1 > 0 && systemMetrics.cpu_cores > 0 
-    ? (systemMetrics.load_avg_1 / systemMetrics.cpu_cores) 
-    : 0.5;
-  const adjustedResponseTime = baseResponseTime * (1 + loadFactor);
-  
-  if (metrics.value[2]) {
-    metrics.value[2].value = adjustedResponseTime.toFixed(0);
-    metrics.value[2].change = loadFactor < 0.7 ? '-优秀' : loadFactor < 1.0 ? '~正常' : '+偏高';
-    metrics.value[2].data.shift();
-    metrics.value[2].data.push(adjustedResponseTime);
-  }
-  
-  // 更新系统稳定性评分（基于系统运行时间和负载）
-  let stabilityScore = 95; // 基础分
-  
-  // 根据系统负载调整
-  if (systemMetrics.load_avg_5 > 0 && systemMetrics.cpu_cores > 0) {
-    const loadRatio = systemMetrics.load_avg_5 / systemMetrics.cpu_cores;
-    if (loadRatio > 1.5) stabilityScore -= 15;
-    else if (loadRatio > 1.0) stabilityScore -= 8;
-  }
-  
-  // 根据内存使用率调整
-  if (systemMetrics.memory_usage > 90) stabilityScore -= 10;
-  else if (systemMetrics.memory_usage > 80) stabilityScore -= 5;
-  
-  // 根据磁盘使用率调整
-  if (systemMetrics.disk_usage > 95) stabilityScore -= 10;
-  else if (systemMetrics.disk_usage > 85) stabilityScore -= 5;
-  
-  stabilityScore = Math.max(60, Math.min(100, stabilityScore));
-  
-  if (metrics.value[3]) {
-    metrics.value[3].value = stabilityScore.toFixed(1);
-    metrics.value[3].change = stabilityScore > 90 ? '+优秀' : stabilityScore > 80 ? '~良好' : '-需改进';
-    metrics.value[3].data.shift();
-    metrics.value[3].data.push(stabilityScore);
-  }
+// ═══════════════════════════════════════════════════════════════
+// 事件图标映射
+// ═══════════════════════════════════════════════════════════════
+const getEventIcon = (type: string): string => {
+  const icons: Record<string, string> = {
+    success: 'lucide:check-circle',
+    info: 'lucide:info',
+    warning: 'lucide:alert-triangle',
+    error: 'lucide:x-circle'
+  };
+  return icons[type] || 'lucide:info';
 };
 
-// 生成系统事件
-const generateSystemEvents = () => {
-  const systemMetrics = moduleData.value.systemMetrics;
-  if (!systemMetrics) return;
-  
-  const newEvents: Array<{id: string, type: string, message: string, time: string}> = [];
-  
-  // 检查CPU使用率
-  if (systemMetrics.cpu_usage > 90) {
-    newEvents.push({
-      id: 'cpu_high',
-      type: 'error',
-      message: `CPU使用率过高: ${systemMetrics.cpu_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  } else if (systemMetrics.cpu_usage > 75) {
-    newEvents.push({
-      id: 'cpu_warning',
-      type: 'warning',
-      message: `CPU使用率较高: ${systemMetrics.cpu_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  }
-  
-  // 检查内存使用率
-  if (systemMetrics.memory_usage > 90) {
-    newEvents.push({
-      id: 'memory_high',
-      type: 'error',
-      message: `内存使用率过高: ${systemMetrics.memory_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  } else if (systemMetrics.memory_usage > 80) {
-    newEvents.push({
-      id: 'memory_warning',
-      type: 'warning',
-      message: `内存使用率较高: ${systemMetrics.memory_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  }
-  
-  // 检查磁盘使用率
-  if (systemMetrics.disk_usage > 95) {
-    newEvents.push({
-      id: 'disk_high',
-      type: 'error',
-      message: `磁盘使用率过高: ${systemMetrics.disk_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  } else if (systemMetrics.disk_usage > 85) {
-    newEvents.push({
-      id: 'disk_warning',
-      type: 'warning',
-      message: `磁盘使用率较高: ${systemMetrics.disk_usage.toFixed(1)}%`,
-      time: '刚刚'
-    });
-  }
-  
-  // 检查系统负载
-  if (systemMetrics.load_avg_1 > 0 && systemMetrics.cpu_cores > 0) {
-    const loadRatio = systemMetrics.load_avg_1 / systemMetrics.cpu_cores;
-    if (loadRatio > 2.0) {
-      newEvents.push({
-        id: 'load_high',
-        type: 'error',
-        message: `系统负载过高: ${systemMetrics.load_avg_1.toFixed(2)}`,
-        time: '刚刚'
-      });
-    } else if (loadRatio > 1.5) {
-      newEvents.push({
-        id: 'load_warning',
-        type: 'warning',
-        message: `系统负载较高: ${systemMetrics.load_avg_1.toFixed(2)}`,
-        time: '刚刚'
-      });
-    }
-  }
-  
-  // 更新事件列表
-  if (newEvents.length > 0) {
-    // 清除旧的系统事件
-    events.value = events.value.filter(event => 
-      !['cpu_high', 'cpu_warning', 'memory_high', 'memory_warning', 'disk_high', 'disk_warning', 'load_high', 'load_warning'].includes(event.id)
-    );
-    events.value = [...newEvents, ...events.value].slice(0, 10);
-  } else {
-    // 没有警告，添加正常事件
-    const hasNormalEvent = events.value.some(event => event.id === 'system_normal');
-    if (!hasNormalEvent) {
-      events.value.unshift({
-        id: 'system_normal',
-        type: 'success',
-        message: '系统运行正常，所有指标在正常范围内',
-        time: '刚刚'
-      });
-      events.value = events.value.slice(0, 10);
-    }
-  }
+// ═══════════════════════════════════════════════════════════════
+// 定时器与生命周期
+// ═══════════════════════════════════════════════════════════════
+let timeTimer: ReturnType<typeof setInterval> | null = null;
+let dataTimer: ReturnType<typeof setInterval> | null = null;
+
+const updateTime = () => {
+  currentTime.value = new Date().toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 };
 
-// 获取系统信息数据
-const fetchSystemData = async () => {
-  try {
-    const [systemInfo, systemMetrics] = await Promise.allSettled([
-      getSystemInfoApi(),
-      getSystemMetricsApi()
-    ]);
-    
-    if (systemInfo.status === 'fulfilled') {
-      moduleData.value.systemInfo = systemInfo.value;
-      // 清除系统信息相关错误
-      events.value = events.value.filter(event => !['system_info_error', 'system_data_error'].includes(event.id));
-    } else {
-
-      events.value.unshift({
-        id: 'system_info_error',
-        type: 'warning',
-        message: '系统信息获取失败，部分信息可能不准确',
-        time: '刚刚'
-      });
-      events.value = events.value.slice(0, 10); // 限制事件数量
-    }
-    
-    if (systemMetrics.status === 'fulfilled') {
-      moduleData.value.systemMetrics = systemMetrics.value;
-      // 清除系统监控相关错误
-      events.value = events.value.filter(event => !['system_metrics_error', 'system_data_error'].includes(event.id));
-    } else {
-
-      events.value.unshift({
-        id: 'system_metrics_error',
-        type: 'warning',
-        message: '系统监控数据获取失败，性能指标可能不准确',
-        time: '刚刚'
-      });
-      events.value = events.value.slice(0, 10); // 限制事件数量
-    }
-  } catch (error) {
-
-    events.value.unshift({
-      id: 'system_data_error',
-      type: 'error',
-      message: '系统数据获取异常，请检查网络连接',
-      time: '刚刚'
-    });
-    events.value = events.value.slice(0, 10); // 限制事件数量
-  }
-};
-
-// 刷新系统数据
-const refreshSystemData = async () => {
-  refreshing.value = true;
-  try {
-    await refreshSystemInfoApi();
-    await fetchSystemData();
-  } catch (error) {
-
-  } finally {
-    refreshing.value = false;
-  }
-};
-
-// 获取系统数据并更新状态
-const fetchAllSystemData = async () => {
-  loading.value = false;
-  
-  try {
-    await fetchSystemData();
-    
-    // 更新系统状态
-    const systemMetrics = moduleData.value.systemMetrics;
-    systemStatus.value.system = {
-      connected: !!systemMetrics,
-      healthy: systemMetrics ? (
-        systemMetrics.cpu_usage < 90 && 
-        systemMetrics.memory_usage < 90 && 
-        systemMetrics.disk_usage < 95
-      ) : false,
-      lastCheck: new Date().toISOString()
-    };
-    
-    // 生成系统事件
-    generateSystemEvents();
-    
-    // 更新指标和图表
-    updateMetricsFromModuleData();
-    updateCharts();
-  } catch (error) {
-
-    systemStatus.value.system = {
-      connected: false,
-      healthy: false,
-      lastCheck: new Date().toISOString()
-    };
-  }
-};
-
-// 定时更新数据
-const updateLiveData = () => {
-  fetchAllSystemData();
-};
-
-// 图表自适应窗口大小
 const handleResize = () => {
-  if (trendChartInstance && !trendChartInstance.isDisposed()) {
-    trendChartInstance.resize();
-  }
-  if (networkChartInstance && !networkChartInstance.isDisposed()) {
-    networkChartInstance.resize();
-  }
-  Object.values(miniCharts).forEach((chart: any) => {
-    if (chart && !chart.isDisposed()) {
-      chart.resize();
-    }
-  });
+  trendChartInstance?.resize();
+  networkChartInstance?.resize();
+  Object.values(miniCharts).forEach(chart => chart?.resize());
 };
 
-onMounted(async () => {
+onMounted(() => {
   updateTime();
   timeTimer = setInterval(updateTime, 1000);
-  
-  // 快速初始化基础UI
-  loading.value = false;
-  
-  // 加载系统数据
-  fetchAllSystemData().catch(_err => {
-    // Error loading system data on mount
-  });
-  
-  // 设置定时更新（每30秒更新一次以减少服务器负载）
-  dataTimer = setInterval(updateLiveData, 30000);
-  
+
+  // 初始化数据
+  updateMetrics();
+  generateEvents();
+
   // 延迟初始化图表，确保DOM已渲染
   setTimeout(() => {
     initTrendChart();
     initNetworkChart();
     updateCharts();
   }, 200);
-  
-  // 监听窗口大小变化
+
+  // 每3秒更新动态数据（频率适中，既展示动态效果又避免过度刷新）
+  dataTimer = setInterval(() => {
+    updateMetrics();
+    generateEvents();
+    updateCharts();
+  }, 3000);
+
   window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
-  clearInterval(timeTimer);
-  clearInterval(dataTimer);
-  
-  // 移除 resize 事件监听器
+  if (timeTimer) clearInterval(timeTimer);
+  if (dataTimer) clearInterval(dataTimer);
   window.removeEventListener('resize', handleResize);
-  
-  // 安全地销毁图表实例
-  if (trendChartInstance && !trendChartInstance.isDisposed()) {
-    trendChartInstance.dispose();
-    trendChartInstance = null;
-  }
-  if (networkChartInstance && !networkChartInstance.isDisposed()) {
-    networkChartInstance.dispose();
-    networkChartInstance = null;
-  }
-  Object.values(miniCharts).forEach((chart: any) => {
-    if (chart && !chart.isDisposed()) {
-      chart.dispose();
-    }
-  });
+
+  trendChartInstance?.dispose();
+  networkChartInstance?.dispose();
+  Object.values(miniCharts).forEach(chart => chart?.dispose());
 });
 </script>
 
@@ -1099,30 +875,9 @@ onUnmounted(() => {
   min-height: 100vh;
   padding: 24px;
   background: #f7f8fa;
-  position: relative;
 }
 
-/* 加载状态 */
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(247, 248, 250, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(2px);
-}
-
-.loading-content {
-  width: 200px;
-  height: 100px;
-}
-
-/* 头部样式 */
+/* ── 头部样式 ── */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -1212,20 +967,21 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
-/* 指标卡片 */
+/* ── 指标卡片 ── */
 .metrics-section {
   margin-bottom: 24px;
 }
 
 .metric-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 20px;
-  height: 140px;
+  height: 150px;
   position: relative;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .metric-card:hover {
@@ -1233,40 +989,72 @@ onUnmounted(() => {
   transform: translateY(-2px);
 }
 
-.metric-info {
+.metric-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.metric-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.metric-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .metric-label {
   display: block;
   font-size: 13px;
   color: #8c8c8c;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .metric-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 600;
   color: #1a1a1a;
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .metric-unit {
-  font-size: 14px;
+  font-size: 13px;
   color: #8c8c8c;
-  margin-left: 4px;
+}
+
+.metric-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 2;
 }
 
 .metric-trend {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 500;
 }
 
 .trend-up {
-  color: #52c41a;
+  color: #ff4d4f;
 }
 
 .trend-down {
@@ -1277,16 +1065,22 @@ onUnmounted(() => {
   color: #8c8c8c;
 }
 
+.metric-update-time {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
 .metric-chart {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 40px;
-  opacity: 0.6;
+  height: 50px;
+  opacity: 0.5;
+  z-index: 1;
 }
 
-/* 系统概览区 */
+/* ── 系统概览区 ── */
 .overview-section {
   margin-bottom: 24px;
 }
@@ -1297,121 +1091,16 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  height: 320px;
+  height: 100%;
+  min-height: 340px;
   transition: all 0.3s ease;
   border: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
 }
 
 .system-info-card:hover,
 .network-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-  border-color: #d9d9d9;
-}
-
-.system-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  background: #fafafa;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  min-height: 55px;
-  position: relative;
-  overflow: hidden;
-}
-
-.info-item:hover {
-  background: #f5f5f5;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.info-item-wide {
-  grid-column: span 2;
-}
-
-.info-label {
-  font-size: 12px;
-  color: #8c8c8c;
-  font-weight: 500;
-  margin-bottom: 2px;
-}
-
-.info-value {
-  font-size: 13px;
-  color: #262626;
-  font-weight: 600;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  max-height: 2.6em;
-}
-
-.cpu-model {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal;
-  max-height: 2.6em;
-  font-size: 12px;
-}
-
-.load-values {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 0.3px;
-  line-height: 1.2;
-}
-
-.os-info {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal;
-  max-height: 2.6em;
-  font-size: 12px;
-}
-
-.chart-container-small {
-  height: 240px;
-  width: 100%;
-}
-
-/* 内容区 */
-.content-section {
-  margin-bottom: 24px;
-}
-
-.chart-card,
-.event-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  height: 420px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
-  transition: all 0.3s ease;
-}
-
-.chart-card:hover,
-.event-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
   border-color: #d9d9d9;
@@ -1426,6 +1115,12 @@ onUnmounted(() => {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.card-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .card-title {
   font-size: 16px;
   font-weight: 600;
@@ -1433,14 +1128,176 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.system-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  flex: 1;
+  align-content: start;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  min-height: 55px;
+}
+
+.info-item:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.info-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #262626;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-mono {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-small {
+  font-size: 11px;
+}
+
+.arch-tag {
+  display: inline-block;
+  background: #f0f5ff;
+  color: #722ed1;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+/* 网络统计 */
+.network-stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.network-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.network-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.network-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+.network-stat-unit {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
+.network-divider {
+  width: 1px;
+  height: 40px;
+  background: #e8e8e8;
+}
+
+.chart-container-small {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ── 内容区 ── */
+.content-section {
+  margin-bottom: 24px;
+}
+
+.chart-card,
+.event-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  height: 460px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover,
+.event-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: #d9d9d9;
+}
+
+.trend-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+
+.trend-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trend-stat-label {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.trend-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .chart-container {
-  height: 340px;
+  height: 320px;
   width: 100%;
 }
 
 /* 事件列表 */
 .event-list {
-  height: 340px;
+  height: 380px;
   overflow-y: auto;
 }
 
@@ -1525,7 +1382,7 @@ onUnmounted(() => {
   color: #8c8c8c;
 }
 
-/* 资源卡片 */
+/* ── 资源卡片 ── */
 .resource-section {
   margin-bottom: 24px;
 }
@@ -1552,6 +1409,12 @@ onUnmounted(() => {
   margin-bottom: 12px;
 }
 
+.resource-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .resource-name {
   font-size: 14px;
   font-weight: 500;
@@ -1561,48 +1424,27 @@ onUnmounted(() => {
 .resource-value {
   font-size: 20px;
   font-weight: 600;
-  color: #1a1a1a;
   font-variant-numeric: tabular-nums;
 }
 
 .resource-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 8px;
   font-size: 12px;
   color: #8c8c8c;
 }
 
-/* 响应式设计 */
-@media (max-width: 1400px) {
-  .system-info-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 8px;
-  }
+.resource-timestamp {
+  font-size: 11px;
+  color: #bfbfbf;
 }
 
+/* ── 响应式设计 ── */
 @media (max-width: 1200px) {
   .system-info-grid {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 8px;
-  }
-  
-  .info-item-wide {
-    grid-column: span 1;
-  }
-  
-  .info-item {
-    padding: 10px 12px;
-    min-height: 50px;
-  }
-  
-  .info-value {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 992px) {
-  .system-info-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 8px;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1612,85 +1454,43 @@ onUnmounted(() => {
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .platform-title {
     font-size: 20px;
   }
-  
+
   .metric-card {
-    height: 120px;
+    height: 130px;
   }
-  
+
   .metric-value {
-    font-size: 28px;
+    font-size: 24px;
   }
-  
+
   .system-info-card,
   .network-card {
     height: auto;
-    min-height: 280px;
+    min-height: 300px;
   }
-  
-  .system-info-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  
-  .info-item-wide {
-    grid-column: span 2;
-  }
-  
-  .info-item {
-    padding: 10px 12px;
-    min-height: 48px;
-  }
-  
-  .info-value {
-    font-size: 12px;
-    line-height: 1.2;
-  }
-  
-  .info-label {
-    font-size: 11px;
-  }
-  
-  .cpu-model {
-    -webkit-line-clamp: 2;
-    max-height: 2.4em;
-    font-size: 11px;
-  }
-  
-  .load-values {
-    font-size: 11px;
-    letter-spacing: 0.2px;
-  }
-  
-  .chart-container-small {
-    height: 200px;
-  }
-}
 
-@media (max-width: 480px) {
-  .system-info-grid {
-    grid-template-columns: 1fr;
-    gap: 6px;
+  .chart-card,
+  .event-card {
+    height: auto;
+    min-height: 400px;
   }
-  
-  .info-item-wide {
-    grid-column: span 1;
+
+  .network-stats {
+    flex-direction: column;
+    gap: 12px;
   }
-  
-  .info-item {
-    padding: 8px 10px;
-    min-height: 45px;
+
+  .network-divider {
+    width: 100%;
+    height: 1px;
   }
-  
-  .info-value {
-    font-size: 11px;
-  }
-  
-  .info-label {
-    font-size: 10px;
+
+  .trend-stats {
+    gap: 16px;
   }
 }
 </style>
