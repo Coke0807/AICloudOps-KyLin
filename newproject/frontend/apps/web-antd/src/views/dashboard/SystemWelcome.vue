@@ -64,6 +64,19 @@
               <span class="info-value" :class="item.className" :title="String(item.value)">{{ item.value }}</span>
             </div>
           </div>
+          <!-- 系统负载指标（与后端 demo_engine 一致） -->
+          <div class="system-load-bar">
+            <Icon icon="lucide:gauge" size="14" color="#722ed1" />
+            <span class="load-label">系统负载</span>
+            <span class="load-values">
+              <span class="load-val" :class="{ 'load-high': MOCK_SYSTEM_LOAD.load1 > MOCK_SYSTEM_LOAD.cpuCount }">{{ MOCK_SYSTEM_LOAD.load1 }}</span>
+              <span class="load-sep">/</span>
+              <span class="load-val">{{ MOCK_SYSTEM_LOAD.load5 }}</span>
+              <span class="load-sep">/</span>
+              <span class="load-val">{{ MOCK_SYSTEM_LOAD.load15 }}</span>
+            </span>
+            <span class="load-hint">(1min / 5min / 15min)</span>
+          </div>
         </div>
       </a-col>
 
@@ -180,6 +193,99 @@
         </div>
       </a-col>
     </a-row>
+
+    <!-- 进程监控 & 网络连接 & 安全事件 -->
+    <a-row :gutter="[16, 16]" class="detail-section">
+      <!-- 进程监控 -->
+      <a-col :xs="24" :lg="10">
+        <div class="process-card">
+          <div class="card-header">
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:terminal" size="20" color="#fa541c" />
+              <h3 class="card-title">进程监控</h3>
+            </div>
+            <a-tag color="orange">{{ processList.length }} 个活跃进程</a-tag>
+          </div>
+          <div class="process-table-wrapper">
+            <table class="process-table">
+              <thead>
+                <tr>
+                  <th>PID</th>
+                  <th>进程名</th>
+                  <th>CPU</th>
+                  <th>内存</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="proc in processList" :key="proc.pid">
+                  <td class="col-pid">{{ proc.pid }}</td>
+                  <td class="col-name">
+                    <Icon :icon="getProcessIcon(proc.name)" size="14" :color="proc.cpu > 30 ? '#ff4d4f' : '#8c8c8c'" />
+                    {{ proc.name }}
+                  </td>
+                  <td class="col-cpu" :class="{ 'cpu-high': proc.cpu > 30 }">{{ proc.cpu }}%</td>
+                  <td class="col-mem">{{ proc.memory }}</td>
+                  <td>
+                    <a-badge :status="proc.status === 'running' ? 'processing' : 'default'" :text="proc.status" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </a-col>
+
+      <!-- 网络连接状态 -->
+      <a-col :xs="24" :lg="6">
+        <div class="connection-card">
+          <div class="card-header">
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:link" size="20" color="#52c41a" />
+              <h3 class="card-title">网络连接</h3>
+            </div>
+            <a-tag color="green">{{ MOCK_CONNECTIONS.length }} 条活跃</a-tag>
+          </div>
+          <div class="connection-list">
+            <div v-for="conn in MOCK_CONNECTIONS" :key="conn.local" class="connection-item">
+              <div class="conn-top">
+                <a-tag color="green" size="small">{{ conn.status }}</a-tag>
+                <span class="conn-service">{{ conn.service }}</span>
+              </div>
+              <div class="conn-addr">
+                <span class="conn-local">{{ conn.local }}</span>
+                <Icon icon="lucide:arrow-right" size="12" color="#bfbfbf" />
+                <span class="conn-remote">{{ conn.remote }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </a-col>
+
+      <!-- 安全事件 -->
+      <a-col :xs="24" :lg="8">
+        <div class="security-card">
+          <div class="card-header">
+            <div class="card-title-wrapper">
+              <Icon icon="lucide:shield-check" size="20" color="#ff4d4f" />
+              <h3 class="card-title">安全事件</h3>
+            </div>
+            <a-badge status="processing" text="实时监控" />
+          </div>
+          <div class="security-list">
+            <div v-for="evt in MOCK_SECURITY_EVENTS" :key="evt.id" class="security-item" :class="`sec-${evt.type}`">
+              <div class="sec-icon-row">
+                <Icon :icon="getSecurityIcon(evt.type)" size="16" :color="getSecurityColor(evt.type)" />
+                <span class="sec-title">{{ evt.title }}</span>
+                <a-tag :color="getSecurityTagColor(evt.type)" size="small">{{ evt.layer }}</a-tag>
+              </div>
+              <div class="sec-desc">{{ evt.desc }}</div>
+              <div class="sec-time">{{ evt.time }}</div>
+            </div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
   </div>
 </template>
 
@@ -242,13 +348,113 @@ interface SystemEvent {
 const STATIC_SYSTEM_INFO = {
   version: 'V11 (2503)',
   hostname: 'win000k10309',
-  kernel: 'linux 6.6.0-32.7.y2505.ky11.loongarch64',
+  kernel: 'linux 6.6.0-32.7.v2025.ky11.loongarch64',
   cpu: 'Loongson-3A5000',
   arch: 'LoongArch',
   memory: '12GB',
   desktop: 'UKUI',
   username: 'vmuser'
 };
+
+// ═══════════════════════════════════════════════════════════════
+// Mock 数据 —— 进程、网络连接、系统负载、安全事件
+// 数据与后端 demo_engine.py 保持一致
+// ═══════════════════════════════════════════════════════════════
+
+interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpu: number;
+  memory: string;
+  status: string;
+}
+
+interface NetworkConnection {
+  local: string;
+  remote: string;
+  status: string;
+  pid: number;
+  service: string;
+}
+
+interface SecurityEvent {
+  id: string;
+  type: 'critical' | 'warning' | 'success' | 'info';
+  title: string;
+  desc: string;
+  time: string;
+  layer: string;
+}
+
+// 进程监控数据 - 使用 ref 以便动态更新
+const processList = ref<ProcessInfo[]>([
+  { pid: 1234, name: 'nginx', cpu: 45.2, memory: '500MB', status: 'running' },
+  { pid: 2345, name: 'mysqld', cpu: 28.7, memory: '2GB', status: 'running' },
+  { pid: 3456, name: 'python3', cpu: 18.3, memory: '300MB', status: 'running' },
+  { pid: 4567, name: 'rsyslogd', cpu: 8.5, memory: '64MB', status: 'running' },
+  { pid: 5678, name: 'sshd', cpu: 2.1, memory: '8MB', status: 'running' },
+]);
+
+// 进程基准值（用于随机波动计算）
+const processBaseValues = [
+  { pid: 1234, name: 'nginx', baseCpu: 45.2, baseMem: 500, memUnit: 'MB' },
+  { pid: 2345, name: 'mysqld', baseCpu: 28.7, baseMem: 2048, memUnit: 'MB' },
+  { pid: 3456, name: 'python3', baseCpu: 18.3, baseMem: 300, memUnit: 'MB' },
+  { pid: 4567, name: 'rsyslogd', baseCpu: 8.5, baseMem: 64, memUnit: 'MB' },
+  { pid: 5678, name: 'sshd', baseCpu: 2.1, baseMem: 8, memUnit: 'MB' },
+];
+
+/**
+ * 格式化内存显示
+ */
+const formatMemory = (mb: number): string => {
+  if (mb >= 1024) {
+    return `${(mb / 1024).toFixed(1)}GB`;
+  }
+  return `${Math.round(mb)}MB`;
+};
+
+/**
+ * 更新进程数据 - 添加随机波动
+ */
+const updateProcessData = () => {
+  processList.value = processBaseValues.map(proc => {
+    // CPU 波动：基准值 ±15%，确保在合理范围内
+    const cpuFluctuation = (Math.random() - 0.5) * 2 * proc.baseCpu * 0.15;
+    let newCpu = proc.baseCpu + cpuFluctuation;
+    // 边界限制
+    newCpu = Math.max(0.5, Math.min(95, newCpu));
+
+    // 内存波动：基准值 ±10%
+    const memFluctuation = (Math.random() - 0.5) * 2 * proc.baseMem * 0.10;
+    let newMem = proc.baseMem + memFluctuation;
+    newMem = Math.max(1, newMem);
+
+    return {
+      pid: proc.pid,
+      name: proc.name,
+      cpu: parseFloat(newCpu.toFixed(1)),
+      memory: formatMemory(newMem),
+      status: 'running'
+    };
+  });
+};
+
+const MOCK_CONNECTIONS: NetworkConnection[] = [
+  { local: '0.0.0.0:80', remote: '192.168.1.100:52341', status: 'ESTABLISHED', pid: 1234, service: 'nginx' },
+  { local: '0.0.0.0:3306', remote: '192.168.1.100:52342', status: 'ESTABLISHED', pid: 2345, service: 'mysqld' },
+  { local: '0.0.0.0:22', remote: '10.0.0.5:49832', status: 'ESTABLISHED', pid: 5678, service: 'sshd' },
+];
+
+const MOCK_SYSTEM_LOAD = { load1: 3.85, load5: 3.12, load15: 2.67, cpuCount: 4 };
+
+const MOCK_SECURITY_EVENTS: SecurityEvent[] = [
+  { id: 'sec-001', type: 'critical', title: '安全护栏拦截', desc: 'rm -rf /var/log/* — 风险评分 1.0，已在参数校验层拦截', time: '14:32:15', layer: '风险评分' },
+  { id: 'sec-002', type: 'critical', title: '注入攻击检测', desc: '识别到 prompt_injection 攻击模式，已拒绝执行', time: '14:28:03', layer: '注入检测' },
+  { id: 'sec-003', type: 'warning', title: '高危操作拦截', desc: 'chmod 777 /etc/shadow — 危险参数已拦截', time: '14:25:41', layer: '参数校验' },
+  { id: 'sec-004', type: 'success', title: '安全校验通过', desc: '系统状态查询操作安全放行', time: '14:20:10', layer: '意图分类' },
+  { id: 'sec-005', type: 'success', title: '安全校验通过', desc: '磁盘使用率检查操作安全放行', time: '14:15:33', layer: '意图分类' },
+];
 
 // ═══════════════════════════════════════════════════════════════
 // 随机数据生成工具函数
@@ -412,7 +618,7 @@ const resources = computed<ResourceItem[]>(() => {
     {
       name: '磁盘',
       usage: Math.round(diskUsage),
-      detail: `已用 ${(diskUsage * 0.5).toFixed(1)}GB / 500GB`,
+      detail: `已用 ${(diskUsage * 5).toFixed(1)}GB / 500GB`,
       icon: 'lucide:database',
       iconColor: '#faad14',
       valueColor: diskUsage > 90 ? '#ff4d4f' : diskUsage > 75 ? '#faad14' : '#52c41a',
@@ -813,6 +1019,51 @@ const getEventIcon = (type: string): string => {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// 进程/安全事件辅助函数
+// ═══════════════════════════════════════════════════════════════
+
+const getProcessIcon = (name: string): string => {
+  const map: Record<string, string> = {
+    nginx: 'lucide:globe',
+    mysqld: 'lucide:database',
+    python3: 'lucide:code',
+    rsyslogd: 'lucide:scroll-text',
+    sshd: 'lucide:terminal',
+  };
+  return map[name] || 'lucide:box';
+};
+
+const getSecurityIcon = (type: string): string => {
+  const map: Record<string, string> = {
+    critical: 'lucide:shield-x',
+    warning: 'lucide:shield-alert',
+    success: 'lucide:shield-check',
+    info: 'lucide:info',
+  };
+  return map[type] || 'lucide:info';
+};
+
+const getSecurityColor = (type: string): string => {
+  const map: Record<string, string> = {
+    critical: '#ff4d4f',
+    warning: '#faad14',
+    success: '#52c41a',
+    info: '#1890ff',
+  };
+  return map[type] || '#8c8c8c';
+};
+
+const getSecurityTagColor = (type: string): string => {
+  const map: Record<string, string> = {
+    critical: 'red',
+    warning: 'orange',
+    success: 'green',
+    info: 'blue',
+  };
+  return map[type] || 'default';
+};
+
+// ═══════════════════════════════════════════════════════════════
 // 定时器与生命周期
 // ═══════════════════════════════════════════════════════════════
 let timeTimer: ReturnType<typeof setInterval> | null = null;
@@ -841,6 +1092,7 @@ onMounted(() => {
   // 初始化数据
   updateMetrics();
   generateEvents();
+  updateProcessData(); // 初始化进程数据
 
   // 延迟初始化图表，确保DOM已渲染
   setTimeout(() => {
@@ -853,6 +1105,7 @@ onMounted(() => {
   dataTimer = setInterval(() => {
     updateMetrics();
     generateEvents();
+    updateProcessData(); // 更新进程监控数据（带随机波动）
     updateCharts();
   }, 3000);
 
@@ -1442,6 +1695,256 @@ onUnmounted(() => {
 }
 
 /* ── 响应式设计 ── */
+
+/* ── 详情区（进程 / 网络连接 / 安全事件）── */
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.process-card,
+.connection-card,
+.security-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.process-card:hover,
+.connection-card:hover,
+.security-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: #d9d9d9;
+}
+
+/* 进程表格 */
+.process-table-wrapper {
+  flex: 1;
+  overflow-x: auto;
+}
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.process-table thead th {
+  text-align: left;
+  padding: 10px 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+}
+
+.process-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #fafafa;
+  color: #262626;
+}
+
+.process-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.col-pid {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.col-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.col-cpu {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.cpu-high {
+  color: #ff4d4f !important;
+}
+
+.col-mem {
+  font-variant-numeric: tabular-nums;
+  color: #595959;
+}
+
+/* 网络连接 */
+.connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connection-item {
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.connection-item:hover {
+  background: #f0f5ff;
+  border-color: #d6e4ff;
+}
+
+.conn-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.conn-service {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.conn-addr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.conn-local {
+  color: #1890ff;
+}
+
+.conn-remote {
+  color: #8c8c8c;
+}
+
+/* 安全事件 */
+.security-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.security-item {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.2s;
+}
+
+.security-item:hover {
+  transform: translateX(2px);
+}
+
+.sec-critical {
+  background: linear-gradient(135deg, #fff1f0 0%, #fff 100%);
+  border-left: 3px solid #ff4d4f;
+}
+
+.sec-warning {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff 100%);
+  border-left: 3px solid #faad14;
+}
+
+.sec-success {
+  background: linear-gradient(135deg, #f6ffed 0%, #fff 100%);
+  border-left: 3px solid #52c41a;
+}
+
+.sec-info {
+  background: linear-gradient(135deg, #e6f7ff 0%, #fff 100%);
+  border-left: 3px solid #1890ff;
+}
+
+.sec-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.sec-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  flex: 1;
+}
+
+.sec-desc {
+  font-size: 12px;
+  color: #595959;
+  line-height: 1.5;
+  margin-bottom: 2px;
+  padding-left: 22px;
+}
+
+.sec-time {
+  font-size: 11px;
+  color: #bfbfbf;
+  padding-left: 22px;
+}
+
+/* 系统负载栏 */
+.system-load-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f9f0ff 0%, #f0f5ff 100%);
+  border-radius: 8px;
+  border: 1px solid #d3adf7;
+}
+
+.load-label {
+  font-size: 12px;
+  color: #722ed1;
+  font-weight: 600;
+}
+
+.load-values {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.load-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #262626;
+}
+
+.load-high {
+  color: #ff4d4f !important;
+}
+
+.load-sep {
+  color: #bfbfbf;
+  font-size: 12px;
+}
+
+.load-hint {
+  font-size: 11px;
+  color: #bfbfbf;
+  margin-left: auto;
+}
+
 @media (max-width: 1200px) {
   .system-info-grid {
     grid-template-columns: 1fr;

@@ -45,6 +45,37 @@ DEMO_SESSIONS = [
         "created_at": (datetime.utcnow() - timedelta(minutes=30)).isoformat() + "Z",
         "updated_at": (datetime.utcnow() - timedelta(minutes=30)).isoformat() + "Z",
     },
+    # 新增 Safe 场景会话
+    {
+        "id": "demo-session-004",
+        "title": "磁盘空间查询",
+        "created_at": (datetime.utcnow() - timedelta(minutes=25)).isoformat() + "Z",
+        "updated_at": (datetime.utcnow() - timedelta(minutes=25)).isoformat() + "Z",
+    },
+    {
+        "id": "demo-session-005",
+        "title": "进程状态查询",
+        "created_at": (datetime.utcnow() - timedelta(minutes=20)).isoformat() + "Z",
+        "updated_at": (datetime.utcnow() - timedelta(minutes=20)).isoformat() + "Z",
+    },
+    {
+        "id": "demo-session-006",
+        "title": "内存使用查询",
+        "created_at": (datetime.utcnow() - timedelta(minutes=15)).isoformat() + "Z",
+        "updated_at": (datetime.utcnow() - timedelta(minutes=15)).isoformat() + "Z",
+    },
+    {
+        "id": "demo-session-007",
+        "title": "网络连接查询",
+        "created_at": (datetime.utcnow() - timedelta(minutes=10)).isoformat() + "Z",
+        "updated_at": (datetime.utcnow() - timedelta(minutes=10)).isoformat() + "Z",
+    },
+    {
+        "id": "demo-session-008",
+        "title": "系统负载查询",
+        "created_at": (datetime.utcnow() - timedelta(minutes=5)).isoformat() + "Z",
+        "updated_at": (datetime.utcnow() - timedelta(minutes=5)).isoformat() + "Z",
+    },
 ]
 
 DEMO_MESSAGES = [
@@ -206,6 +237,199 @@ DEMO_MESSAGES = [
         }),
         "created_at": (datetime.utcnow() - timedelta(minutes=29)).isoformat() + "Z",
     },
+
+    # 场景4：磁盘空间查询（Safe）
+    {
+        "session_id": "demo-session-004",
+        "role": "user",
+        "content": "帮我查看一下磁盘使用情况",
+        "trace_id": "trace-004",
+        "created_at": (datetime.utcnow() - timedelta(minutes=25)).isoformat() + "Z",
+    },
+    {
+        "session_id": "demo-session-004",
+        "role": "assistant",
+        "content": """## 💾 磁盘使用情况
+
+| 挂载点 | 总容量 | 已用 | 可用 | 使用率 |
+|--------|--------|------|------|--------|
+| / | 100G | 45G | 55G | 45% |
+| /home | 200G | 80G | 120G | 40% |
+| /var | 50G | 25G | 25G | 50% |
+
+磁盘空间充足，无需清理。""",
+        "trace_id": "trace-004",
+        "safety_report": json.dumps({
+            "is_safe": True,
+            "overall_risk": "safe",
+            "layers": {
+                "intent": {"passed": True, "risk_level": "safe"},
+                "risk_scorer": {"passed": True, "risk_level": "safe", "score": 0.0},
+                "param_validator": {"passed": True, "risk_level": "safe"},
+            }
+        }),
+        "tool_result": json.dumps({
+            "tools_called": ["get_disk_usage"],
+            "blocked": False,
+        }),
+        "created_at": (datetime.utcnow() - timedelta(minutes=24)).isoformat() + "Z",
+    },
+
+    # 场景5：进程状态查询（Safe）
+    {
+        "session_id": "demo-session-005",
+        "role": "user",
+        "content": "查看当前运行的进程",
+        "trace_id": "trace-005",
+        "created_at": (datetime.utcnow() - timedelta(minutes=20)).isoformat() + "Z",
+    },
+    {
+        "session_id": "demo-session-005",
+        "role": "assistant",
+        "content": """## 🖥️ 进程状态
+
+当前系统运行 **156** 个进程，Top 5 如下：
+
+| PID | 名称 | CPU% | 内存% | 状态 |
+|-----|------|------|-------|------|
+| 1 | systemd | 0.1 | 0.2 | R |
+| 1234 | nginx | 2.5 | 1.5 | S |
+| 5678 | python | 5.0 | 3.0 | R |
+| 9012 | redis-server | 0.5 | 0.8 | S |
+| 3456 | sshd | 0.0 | 0.1 | S |
+
+系统运行正常。""",
+        "trace_id": "trace-005",
+        "safety_report": json.dumps({
+            "is_safe": True,
+            "overall_risk": "safe",
+            "layers": {
+                "intent": {"passed": True, "risk_level": "safe"},
+                "risk_scorer": {"passed": True, "risk_level": "safe", "score": 0.0},
+                "param_validator": {"passed": True, "risk_level": "safe"},
+            }
+        }),
+        "tool_result": json.dumps({
+            "tools_called": ["get_process_list"],
+            "blocked": False,
+        }),
+        "created_at": (datetime.utcnow() - timedelta(minutes=19)).isoformat() + "Z",
+    },
+
+    # 场景6：内存使用查询（Safe）
+    {
+        "session_id": "demo-session-006",
+        "role": "user",
+        "content": "查看内存使用情况",
+        "trace_id": "trace-006",
+        "created_at": (datetime.utcnow() - timedelta(minutes=15)).isoformat() + "Z",
+    },
+    {
+        "session_id": "demo-session-006",
+        "role": "assistant",
+        "content": """## 🧠 内存使用情况
+
+| 类型 | 总量 | 已用 | 可用 |
+|------|------|------|------|
+| 物理内存 | 16GB | 8GB | 8GB |
+| Swap | 4GB | 0.5GB | 3.5GB |
+
+内存使用率：**50%** - 状态良好""",
+        "trace_id": "trace-006",
+        "safety_report": json.dumps({
+            "is_safe": True,
+            "overall_risk": "safe",
+            "layers": {
+                "intent": {"passed": True, "risk_level": "safe"},
+                "risk_scorer": {"passed": True, "risk_level": "safe", "score": 0.0},
+                "param_validator": {"passed": True, "risk_level": "safe"},
+            }
+        }),
+        "tool_result": json.dumps({
+            "tools_called": ["get_system_status"],
+            "blocked": False,
+        }),
+        "created_at": (datetime.utcnow() - timedelta(minutes=14)).isoformat() + "Z",
+    },
+
+    # 场景7：网络连接查询（Safe）
+    {
+        "session_id": "demo-session-007",
+        "role": "user",
+        "content": "查看网络连接状态",
+        "trace_id": "trace-007",
+        "created_at": (datetime.utcnow() - timedelta(minutes=10)).isoformat() + "Z",
+    },
+    {
+        "session_id": "demo-session-007",
+        "role": "assistant",
+        "content": """## 🌐 网络连接状态
+
+| 状态 | 数量 |
+|------|------|
+| ESTABLISHED | 45 |
+| TIME_WAIT | 12 |
+| CLOSE_WAIT | 3 |
+| LISTEN | 8 |
+
+**总计：68 个连接**
+
+网络状态正常，无异常连接。""",
+        "trace_id": "trace-007",
+        "safety_report": json.dumps({
+            "is_safe": True,
+            "overall_risk": "safe",
+            "layers": {
+                "intent": {"passed": True, "risk_level": "safe"},
+                "risk_scorer": {"passed": True, "risk_level": "safe", "score": 0.0},
+                "param_validator": {"passed": True, "risk_level": "safe"},
+            }
+        }),
+        "tool_result": json.dumps({
+            "tools_called": ["get_network_connections"],
+            "blocked": False,
+        }),
+        "created_at": (datetime.utcnow() - timedelta(minutes=9)).isoformat() + "Z",
+    },
+
+    # 场景8：系统负载查询（Safe）
+    {
+        "session_id": "demo-session-008",
+        "role": "user",
+        "content": "查看系统负载",
+        "trace_id": "trace-008",
+        "created_at": (datetime.utcnow() - timedelta(minutes=5)).isoformat() + "Z",
+    },
+    {
+        "session_id": "demo-session-008",
+        "role": "assistant",
+        "content": """## ⚡ 系统负载
+
+| 时间 | 负载 |
+|------|------|
+| 1分钟 | 0.85 |
+| 5分钟 | 0.92 |
+| 15分钟 | 0.78 |
+
+**CPU 核心数：4**
+
+负载正常，系统运行平稳。""",
+        "trace_id": "trace-008",
+        "safety_report": json.dumps({
+            "is_safe": True,
+            "overall_risk": "safe",
+            "layers": {
+                "intent": {"passed": True, "risk_level": "safe"},
+                "risk_scorer": {"passed": True, "risk_level": "safe", "score": 0.0},
+                "param_validator": {"passed": True, "risk_level": "safe"},
+            }
+        }),
+        "tool_result": json.dumps({
+            "tools_called": ["get_system_status"],
+            "blocked": False,
+        }),
+        "created_at": (datetime.utcnow() - timedelta(minutes=4)).isoformat() + "Z",
+    },
 ]
 
 
@@ -292,63 +516,180 @@ def generate_audit_logs():
 
     audit = AuditLogger()
 
-    # 为每个场景生成审计日志
-    scenarios = [
-        {
-            "trace_id": "trace-001",
-            "name": "环境感知",
-            "tools": [
-                {"name": "get_system_status", "args": {}, "result": {"cpu": 92.3}},
-                {"name": "get_network_connections", "args": {}, "result": {"total": 156}},
-                {"name": "get_process_list", "args": {"limit": 10}, "result": {"count": 5}},
-            ]
-        },
-        {
-            "trace_id": "trace-002",
-            "name": "安全护栏拦截",
-            "tools": [
-                {"name": "get_large_files", "args": {"path": "/var/log"}, "result": {"files": 4}},
-            ],
-            "blocked": True
-        },
-        {
-            "trace_id": "trace-003",
-            "name": "提示词注入拦截",
-            "tools": [],
-            "blocked": True
-        },
+    # ============================================================
+    # 风险等级分布设计（总事件数控制在60-80之间）
+    # 目标分布：
+    # - 安全(safe): 46 (65.7%) - 65%以上
+    # - 低风险(low): 8 (11.4%) - 5%-15%
+    # - 中风险(medium): 6 (8.6%) - 5%-15%
+    # - 高风险(high): 5 (7.1%) - 5%-15%
+    # - 严重(critical): 5 (7.1%) - 5%-15%
+    # 总计: 70个事件
+    # 已拦截: 24 (低风险+中风险+高风险+严重)
+    # 已通过: 46 (安全)
+    # 拦截率: 34.3%
+    # ============================================================
+
+    scenarios = []
+
+    # 1. 安全场景 - 46个 (65.7%)
+    safe_scenarios = [
+        {"name": "环境感知", "tools": ["get_system_status", "get_network_connections", "get_process_list"]},
+        {"name": "磁盘空间查询", "tools": ["get_disk_usage"]},
+        {"name": "进程状态查询", "tools": ["get_process_list"]},
+        {"name": "内存使用查询", "tools": ["get_system_status"]},
+        {"name": "网络连接查询", "tools": ["get_network_connections"]},
+        {"name": "系统负载查询", "tools": ["get_system_status"]},
+        {"name": "CPU使用率查询", "tools": ["get_system_status"]},
+        {"name": "磁盘IO查询", "tools": ["get_disk_usage"]},
     ]
+    for i in range(46):
+        template = safe_scenarios[i % len(safe_scenarios)]
+        scenarios.append({
+            "trace_id": f"trace-safe-{i+1:03d}",
+            "name": template["name"],
+            "tools": [{"name": t, "args": {}, "result": {"status": "ok"}} for t in template["tools"]],
+            "blocked": False,
+            "risk_level": "safe",
+        })
+
+    # 2. 低风险场景 - 8个 (11.4%)
+    low_risk_scenarios = [
+        {"name": "查看系统日志", "tools": ["get_system_logs"]},
+        {"name": "查看用户列表", "tools": ["get_user_list"]},
+        {"name": "查看定时任务", "tools": ["get_cron_jobs"]},
+    ]
+    for i in range(8):
+        template = low_risk_scenarios[i % len(low_risk_scenarios)]
+        scenarios.append({
+            "trace_id": f"trace-low-{i+1:03d}",
+            "name": template["name"],
+            "tools": [{"name": t, "args": {}, "result": {"status": "ok"}} for t in template["tools"]],
+            "blocked": True,
+            "risk_level": "low",
+        })
+
+    # 3. 中风险场景 - 6个 (8.6%)
+    medium_risk_scenarios = [
+        {"name": "修改配置文件", "tools": ["edit_config"]},
+        {"name": "重启服务", "tools": ["restart_service"]},
+        {"name": "清理临时文件", "tools": ["clean_temp_files"]},
+    ]
+    for i in range(6):
+        template = medium_risk_scenarios[i % len(medium_risk_scenarios)]
+        scenarios.append({
+            "trace_id": f"trace-medium-{i+1:03d}",
+            "name": template["name"],
+            "tools": [{"name": t, "args": {}, "result": {"status": "blocked"}} for t in template["tools"]],
+            "blocked": True,
+            "risk_level": "medium",
+        })
+
+    # 4. 高风险场景 - 5个 (7.1%)
+    high_risk_scenarios = [
+        {"name": "修改系统配置", "tools": ["edit_system_config"]},
+        {"name": "关闭防火墙", "tools": ["stop_firewall"]},
+        {"name": "修改权限", "tools": ["chmod_operation"]},
+    ]
+    for i in range(5):
+        template = high_risk_scenarios[i % len(high_risk_scenarios)]
+        scenarios.append({
+            "trace_id": f"trace-high-{i+1:03d}",
+            "name": template["name"],
+            "tools": [{"name": t, "args": {}, "result": {"status": "blocked"}} for t in template["tools"]],
+            "blocked": True,
+            "risk_level": "high",
+        })
+
+    # 5. 严重风险场景 - 5个 (7.1%)
+    critical_scenarios = [
+        {"name": "删除系统文件", "tools": ["delete_system_files"]},
+        {"name": "格式化磁盘", "tools": ["format_disk"]},
+        {"name": "修改密码文件", "tools": ["modify_passwd"]},
+        {"name": "提示词注入攻击", "tools": []},
+        {"name": "执行危险命令", "tools": ["execute_dangerous_cmd"]},
+    ]
+    for i in range(5):
+        template = critical_scenarios[i % len(critical_scenarios)]
+        scenarios.append({
+            "trace_id": f"trace-critical-{i+1:03d}",
+            "name": template["name"],
+            "tools": [{"name": t, "args": {}, "result": {"status": "blocked"}} for t in template["tools"]],
+            "blocked": True,
+            "risk_level": "critical",
+        })
 
     for scenario in scenarios:
         trace_id = scenario["trace_id"]
 
-        # 记录环境感知
-        audit.log_environment_sensing(trace_id, {
-            "os": "Kylin Linux V11",
-            "cpu_model": "Loongson-3A5000",
+        # 记录环境感知到数据库
+        db.add_audit_log(trace_id, "ENVIRONMENT_SENSE", 1, {
+            "snapshot": {"os": "Kylin Linux V11", "cpu_model": "Loongson-3A5000"}
         })
 
-        # 记录工具调用
-        for tool in scenario["tools"]:
-            audit.log_tool_execution(trace_id, tool["name"], tool["args"], tool["result"])
-
-        # 记录安全校验
-        if scenario.get("blocked"):
-            audit.log_safety_validation(trace_id, {
-                "is_safe": False,
-                "overall_risk": "critical",
-                "blocked": True
+        # 记录工具调用到数据库
+        for i, tool in enumerate(scenario["tools"]):
+            db.add_audit_log(trace_id, "TOOL_EXECUTION", 4 + i, {
+                "tool": tool["name"],
+                "params": tool["args"],
+                "result": tool["result"]
             })
 
-        # 记录最终决策
-        audit.log_final_decision(trace_id, {
-            "action": "blocked" if scenario.get("blocked") else "completed",
-            "demo_scenario": scenario["name"]
+        # 记录安全校验到数据库
+        if scenario.get("blocked"):
+            db.add_audit_log(trace_id, "SAFETY_VALIDATION", 3, {
+                "validation": {
+                    "is_safe": False,
+                    "overall_risk": scenario.get("risk_level", "critical"),
+                    "blocked": True
+                }
+            })
+        else:
+            # 记录安全通过到数据库
+            db.add_audit_log(trace_id, "SAFETY_VALIDATION", 3, {
+                "validation": {
+                    "is_safe": True,
+                    "overall_risk": scenario.get("risk_level", "safe"),
+                    "blocked": False
+                }
+            })
+
+        # 记录最终决策到数据库
+        db.add_audit_log(trace_id, "FINAL_DECISION", 5, {
+            "decision": {
+                "action": "blocked" if scenario.get("blocked") else "completed",
+                "demo_scenario": scenario["name"]
+            }
         })
 
-        print(f"  [+] 生成审计日志: {scenario['name']}")
+        print(f"  [+] 生成审计日志: {scenario['name']} ({'已拦截' if scenario.get('blocked') else '已通过'})")
 
-    print("[OK] 审计日志生成完成！")
+    # 统计信息
+    total = len(scenarios)
+    blocked = sum(1 for s in scenarios if s.get("blocked"))
+    passed = total - blocked
+    block_rate = (blocked / total * 100) if total > 0 else 0
+
+    # 风险等级分布统计
+    risk_counts = {"safe": 0, "low": 0, "medium": 0, "high": 0, "critical": 0}
+    for s in scenarios:
+        risk_level = s.get("risk_level", "safe")
+        if risk_level in risk_counts:
+            risk_counts[risk_level] += 1
+
+    print(f"\n[Stats] 安全护栏统计:")
+    print(f"  - 总检测次数: {total}")
+    print(f"  - 已拦截: {blocked}")
+    print(f"  - 已通过: {passed}")
+    print(f"  - 拦截率: {block_rate:.1f}%")
+    print(f"\n[Stats] 风险等级分布:")
+    print(f"  - 安全: {risk_counts['safe']} ({risk_counts['safe']/total*100:.1f}%)")
+    print(f"  - 低风险: {risk_counts['low']} ({risk_counts['low']/total*100:.1f}%)")
+    print(f"  - 中风险: {risk_counts['medium']} ({risk_counts['medium']/total*100:.1f}%)")
+    print(f"  - 高风险: {risk_counts['high']} ({risk_counts['high']/total*100:.1f}%)")
+    print(f"  - 严重: {risk_counts['critical']} ({risk_counts['critical']/total*100:.1f}%)")
+
+    print("\n[OK] 审计日志生成完成！")
 
 
 def main():

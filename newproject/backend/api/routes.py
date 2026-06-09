@@ -974,6 +974,2355 @@ groups:
         "updated_at": "2026-06-03T11:20:00Z",
         "status": "indexed",
     },
+    {
+        "id": "doc_006",
+        "title": "Docker 容器安全最佳实践",
+        "file_name": "docker-security-best-practices.md",
+        "content": """# Docker 容器安全最佳实践
+
+## 1. 镜像安全
+
+### 使用最小基础镜像
+```dockerfile
+# 推荐使用 Alpine 或 Distroless 镜像
+FROM gcr.io/distroless/static-debian12
+COPY --from=builder /app/server /server
+CMD ["/server"]
+```
+
+### 镜像扫描
+```bash
+# 使用 Trivy 扫描镜像漏洞
+trivy image myapp:latest
+
+# 使用 Grype 扫描
+grype myapp:latest
+
+# CI/CD 集成扫描
+trivy image --exit-code 1 --severity HIGH,CRITICAL myapp:latest
+```
+
+## 2. 运行时安全
+
+### 只读文件系统
+```bash
+docker run --read-only --tmpfs /tmp:rw,noexec,nosuid myapp:latest
+```
+
+### 非 root 用户运行
+```dockerfile
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+```
+
+### 资源限制
+```bash
+docker run --memory=512m --cpus=1.0 --pids-limit=100 myapp:latest
+```
+
+## 3. 网络安全
+
+### 自定义网络隔离
+```bash
+docker network create --internal backend-net
+docker run --network=backend-net myapp:latest
+```
+
+## 4. Secrets 管理
+```bash
+# 使用 Docker Secrets（Swarm 模式）
+echo "my_secret" | docker secret create db_password -
+
+# 使用环境变量加密
+docker run --env-file .env.encrypted myapp:latest
+```""",
+        "created_at": "2026-06-02T15:30:00Z",
+        "updated_at": "2026-06-02T15:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_007",
+        "title": "Redis 高可用架构与运维",
+        "file_name": "redis-ha-operations.md",
+        "content": """# Redis 高可用架构与运维
+
+## 1. Redis Sentinel 高可用
+
+### 架构原理
+Sentinel 是 Redis 的高可用解决方案，提供监控、通知和自动故障转移。
+
+### 配置示例
+```conf
+# sentinel.conf
+sentinel monitor mymaster 127.0.0.1 6379 2
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 60000
+sentinel parallel-syncs mymaster 1
+```
+
+### 故障转移测试
+```bash
+redis-cli -p 26379 sentinel get-master-addr-by-name mymaster
+# 手动触发故障转移
+redis-cli -p 26379 sentinel failover mymaster
+```
+
+## 2. Redis Cluster 集群
+
+### 创建集群
+```bash
+redis-cli --cluster create \\
+    127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 \\
+    127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005 \\
+    --cluster-replicas 1
+```
+
+### 集群管理
+```bash
+# 查看集群状态
+redis-cli cluster info
+redis-cli cluster nodes
+
+# 添加节点
+redis-cli --cluster add-node 127.0.0.1:7006 127.0.0.1:7000
+
+# 迁移槽位
+redis-cli --cluster reshard 127.0.0.1:7000
+```
+
+## 3. 性能优化
+
+### 内存优化
+```conf
+maxmemory 4gb
+maxmemory-policy allkeys-lru
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+```
+
+### 慢查询日志
+```conf
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+```""",
+        "created_at": "2026-06-01T09:00:00Z",
+        "updated_at": "2026-06-01T09:00:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_008",
+        "title": "ELK 日志分析平台搭建指南",
+        "file_name": "elk-stack-setup.md",
+        "content": """# ELK 日志分析平台搭建指南
+
+## 1. 架构概述
+
+ELK Stack = Elasticsearch + Logstash + Kibana + Beats
+
+## 2. Elasticsearch 部署
+
+### Docker Compose 部署
+```yaml
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+```
+
+### 索引管理
+```bash
+# 创建索引模板
+curl -X PUT "localhost:9200/_index_template/logs" \\
+  -H 'Content-Type: application/json' -d '{
+    "index_patterns": ["logs-*"],
+    "template": {
+      "settings": { "number_of_shards": 3 },
+      "mappings": {
+        "properties": {
+          "@timestamp": { "type": "date" },
+          "message": { "type": "text" },
+          "level": { "type": "keyword" }
+        }
+      }
+    }
+  }'
+```
+
+## 3. Logstash 配置
+
+```ruby
+# logstash.conf
+input {
+  beats {
+    port => 5044
+  }
+}
+
+filter {
+  grok {
+    match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{GREEDYDATA:msg}" }
+  }
+  date {
+    match => [ "timestamp", "yyyy-MM-dd HH:mm:ss" ]
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "logs-%{+YYYY.MM.dd}"
+  }
+}
+```
+
+## 4. Filebeat 配置
+
+```yaml
+# filebeat.yml
+filebeat.inputs:
+  - type: log
+    paths:
+      - /var/log/nginx/access.log
+    fields:
+      type: nginx
+
+output.logstash:
+  hosts: ["logstash:5044"]
+```""",
+        "created_at": "2026-05-30T14:20:00Z",
+        "updated_at": "2026-05-30T14:20:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_009",
+        "title": "Ansible 自动化运维实战",
+        "file_name": "ansible-automation-guide.md",
+        "content": """# Ansible 自动化运维实战
+
+## 1. 基础配置
+
+### inventory 文件
+```ini
+# inventory/hosts.ini
+[webservers]
+web1 ansible_host=192.168.1.10
+web2 ansible_host=192.168.1.11
+
+[dbservers]
+db1 ansible_host=192.168.1.20
+
+[all:vars]
+ansible_user=deploy
+ansible_ssh_private_key_file=~/.ssh/deploy_key
+```
+
+### ansible.cfg
+```ini
+[defaults]
+inventory = inventory/hosts.ini
+remote_user = deploy
+host_key_checking = False
+retry_files_enabled = False
+timeout = 30
+
+[privilege_escalation]
+become = True
+become_method = sudo
+become_user = root
+```
+
+## 2. Playbook 示例
+
+### 部署 Web 应用
+```yaml
+---
+- name: Deploy Web Application
+  hosts: webservers
+  vars:
+    app_version: "1.2.3"
+    app_port: 8080
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [nginx, python3, supervisor]
+        state: present
+        update_cache: yes
+
+    - name: Deploy application
+      copy:
+        src: "dist/app-{{ app_version }}.tar.gz"
+        dest: /opt/app/
+      notify: restart app
+
+    - name: Configure Nginx
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/conf.d/app.conf
+      notify: reload nginx
+
+  handlers:
+    - name: restart app
+      supervisorctl:
+        name: myapp
+        state: restarted
+
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded
+```
+
+## 3. Role 组织
+
+```yaml
+# roles/nginx/tasks/main.yml
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+
+- name: Deploy config
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: reload nginx
+```""",
+        "created_at": "2026-05-28T10:15:00Z",
+        "updated_at": "2026-05-28T10:15:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_010",
+        "title": "VPN 与零信任网络接入方案",
+        "file_name": "vpn-zero-trust-access.md",
+        "content": """# VPN 与零信任网络接入方案
+
+## 1. WireGuard VPN 部署
+
+### 服务端配置
+```ini
+# /etc/wireguard/wg0.conf
+[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = <server_private_key>
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+[Peer]
+PublicKey = <client_public_key>
+AllowedIPs = 10.0.0.2/32
+```
+
+### 客户端配置
+```ini
+[Interface]
+Address = 10.0.0.2/24
+PrivateKey = <client_private_key>
+DNS = 8.8.8.8
+
+[Peer]
+PublicKey = <server_public_key>
+Endpoint = vpn.example.com:51820
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
+```
+
+## 2. 零信任架构
+
+### 核心原则
+- **永不信任，始终验证**: 所有请求都需要认证和授权
+- **最小权限原则**: 仅授予完成工作所需的最小访问权限
+- **微分段**: 将网络划分为细粒度的安全区域
+
+### 实现方案
+```
+用户设备 → 身份验证 → 设备信任评估 → 动态授权 → 应用访问
+```""",
+        "created_at": "2026-05-25T16:40:00Z",
+        "updated_at": "2026-05-25T16:40:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_011",
+        "title": "PostgreSQL 数据库性能调优",
+        "file_name": "postgresql-performance-tuning.md",
+        "content": """# PostgreSQL 数据库性能调优
+
+## 1. 内存配置
+
+```sql
+-- postgresql.conf
+shared_buffers = '4GB'            -- 总内存的 25%
+effective_cache_size = '12GB'     -- 总内存的 75%
+work_mem = '64MB'                 -- 每个连接的排序/哈希操作内存
+maintenance_work_mem = '512MB'    -- 维护操作内存
+wal_buffers = '64MB'
+```
+
+## 2. 查询优化
+
+### 慢查询分析
+```sql
+-- 开启慢查询日志
+ALTER SYSTEM SET log_min_duration_statement = 1000;  -- 超过1秒
+ALTER SYSTEM SET log_statement = 'none';
+ALTER SYSTEM SET log_duration = off;
+
+-- 查看执行计划
+EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+SELECT * FROM orders WHERE user_id = 12345;
+```
+
+### 索引优化
+```sql
+-- 创建合适的索引
+CREATE INDEX CONCURRENTLY idx_orders_user_id ON orders(user_id);
+CREATE INDEX CONCURRENTLY idx_orders_created_at ON orders(created_at DESC);
+
+-- 部分索引
+CREATE INDEX idx_active_users ON users(email) WHERE status = 'active';
+
+-- 查看索引使用情况
+SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read
+FROM pg_stat_user_indexes
+ORDER BY idx_scan DESC;
+```
+
+## 3. 连接池配置
+
+```yaml
+# pgbouncer.ini
+[databases]
+mydb = host=127.0.0.1 port=5432 dbname=mydb
+
+[pgbouncer]
+listen_port = 6432
+pool_mode = transaction
+max_client_conn = 1000
+default_pool_size = 50
+reserve_pool_size = 10
+```
+
+## 4. 备份策略
+
+```bash
+# 使用 pg_basebackup
+pg_basebackup -h localhost -U replicator -D /backup/base -Ft -z -P
+
+# WAL 归档配置
+archive_mode = on
+archive_command = 'cp %p /archive/%f'
+```""",
+        "created_at": "2026-05-22T11:30:00Z",
+        "updated_at": "2026-05-22T11:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_012",
+        "title": "CI/CD 流水线最佳实践",
+        "file_name": "cicd-pipeline-best-practices.md",
+        "content": """# CI/CD 流水线最佳实践
+
+## 1. GitLab CI/CD
+
+### .gitlab-ci.yml 示例
+```yaml
+stages:
+  - build
+  - test
+  - security
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: registry.example.com
+
+build:
+  stage: build
+  script:
+    - docker build -t $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA .
+    - docker push $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+
+test:
+  stage: test
+  services:
+    - postgres:15
+    - redis:7
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_PASSWORD: test_pass
+  script:
+    - pytest --cov=app tests/
+
+security_scan:
+  stage: security
+  script:
+    - trivy image --exit-code 1 --severity HIGH $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+    - bandit -r app/ -ll
+
+deploy_staging:
+  stage: deploy
+  script:
+    - kubectl set image deployment/$CI_PROJECT_NAME app=$DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+  environment:
+    name: staging
+  only:
+    - develop
+```
+
+## 2. GitHub Actions
+
+```yaml
+# .github/workflows/ci.yml
+name: CI Pipeline
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: pytest --cov=app tests/
+```""",
+        "created_at": "2026-05-20T08:45:00Z",
+        "updated_at": "2026-05-20T08:45:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_013",
+        "title": "Linux 网络故障排查手册",
+        "file_name": "linux-network-troubleshooting.md",
+        "content": """# Linux 网络故障排查手册
+
+## 1. 常用排查工具
+
+### 连通性测试
+```bash
+# Ping 测试
+ping -c 4 8.8.8.8
+
+# MTR 路由追踪
+mtr -r -c 100 8.8.8.8
+
+# Telnet 测试端口
+telnet 192.168.1.100 3306
+
+# Nmap 端口扫描
+nmap -sT -p 1-65535 target_ip
+```
+
+### 抓包分析
+```bash
+# TCPDump 抓包
+tcpdump -i eth0 port 80 -w capture.pcap
+
+# 过滤特定流量
+tcpdump -i eth0 'host 192.168.1.100 and port 443'
+
+# 分析抓包文件
+tshark -r capture.pcap -Y "http" -T fields -e http.host -e http.request.uri
+```
+
+## 2. DNS 问题排查
+
+```bash
+# DNS 解析测试
+dig example.com
+dig +trace example.com
+
+# 检查 DNS 配置
+cat /etc/resolv.conf
+
+# 测试 DNS 响应时间
+time dig example.com @8.8.8.8
+```
+
+## 3. TCP 连接问题
+
+```bash
+# 查看连接状态
+ss -tunap | grep :80
+netstat -tunap | grep ESTABLISHED
+
+# TCP 重传统计
+netstat -s | grep -i retrans
+
+# TIME_WAIT 过多处理
+echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse
+```
+
+## 4. 防火墙排查
+
+```bash
+# iptables 规则查看
+iptables -L -n -v
+iptables -L -n -v --line-numbers
+
+# firewalld 管理
+firewall-cmd --list-all
+firewall-cmd --add-port=8080/tcp --permanent
+firewall-cmd --reload
+```""",
+        "created_at": "2026-05-18T13:10:00Z",
+        "updated_at": "2026-05-18T13:10:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_014",
+        "title": "容器编排 Helm Chart 开发指南",
+        "file_name": "helm-chart-development.md",
+        "content": """# 容器编排 Helm Chart 开发指南
+
+## 1. Chart 结构
+
+```
+mychart/
+  Chart.yaml
+  values.yaml
+  charts/
+  templates/
+    deployment.yaml
+    service.yaml
+    ingress.yaml
+    configmap.yaml
+    secrets.yaml
+    _helpers.tpl
+    hpa.yaml
+    serviceaccount.yaml
+```
+
+## 2. 模板语法
+
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mychart.fullname" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mychart.selectorLabels" . | nindent 6 }}
+  template:
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+```
+
+## 3. 常用命令
+
+```bash
+# 打包 Chart
+helm package mychart/
+
+# 安装
+helm install my-release mychart/ -f values-prod.yaml
+
+# 升级
+helm upgrade my-release mychart/ --set image.tag=1.2.0
+
+# 回滚
+helm rollback my-release 1
+
+# 模板渲染测试
+helm template my-release mychart/ -f values-prod.yaml
+```""",
+        "created_at": "2026-05-15T10:20:00Z",
+        "updated_at": "2026-05-15T10:20:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_015",
+        "title": "MongoDB 运维与优化指南",
+        "file_name": "mongodb-operations-guide.md",
+        "content": """# MongoDB 运维与优化指南
+
+## 1. 副本集部署
+
+### 初始化副本集
+```javascript
+// 连接主节点后执行
+rs.initiate({
+  _id: "rs0",
+  members: [
+    { _id: 0, host: "mongo1:27017", priority: 2 },
+    { _id: 1, host: "mongo2:27017", priority: 1 },
+    { _id: 2, host: "mongo3:27017", priority: 1 }
+  ]
+})
+```
+
+### 查看副本集状态
+```javascript
+rs.status()
+rs.conf()
+db.getReplicationInfo()
+```
+
+## 2. 性能优化
+
+### 索引优化
+```javascript
+// 创建复合索引
+db.orders.createIndex({ user_id: 1, created_at: -1 })
+
+// 查看索引使用情况
+db.orders.aggregate([{ $indexStats: {} }])
+
+// 慢查询分析
+db.setProfilingLevel(1, { slowms: 100 })
+db.system.profile.find().sort({ ts: -1 }).limit(10)
+```
+
+### 内存优化
+```javascript
+// 查看内存使用
+db.serverStatus().wiredTiger.cache
+
+// 预热索引
+db.collection.reIndex()
+```
+
+## 3. 备份恢复
+
+```bash
+# 使用 mongodump
+mongodump --uri="mongodb://user:pass@host:27017/mydb" --out=/backup/
+
+# 使用 mongorestore
+mongorestore --uri="mongodb://host:27017" --dir=/backup/mydb
+
+# Oplog 恢复
+mongorestore --oplogReplay --oplogLimit="1686000000:1"
+```""",
+        "created_at": "2026-05-12T14:55:00Z",
+        "updated_at": "2026-05-12T14:55:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_016",
+        "title": "Kubernetes Ingress Controller 配置指南",
+        "file_name": "k8s-ingress-guide.md",
+        "content": """# Kubernetes Ingress Controller 配置指南
+
+## 1. Nginx Ingress 部署
+
+```bash
+# 安装 Ingress Controller
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx \\
+  --namespace ingress-nginx --create-namespace
+```
+
+## 2. Ingress 资源配置
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.example.com
+      secretName: app-tls
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-service
+                port:
+                  number: 80
+```
+
+## 3. 路由策略
+
+```yaml
+# 基于路径的路由
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
+```""",
+        "created_at": "2026-05-10T09:30:00Z",
+        "updated_at": "2026-05-10T09:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_017",
+        "title": "Linux 磁盘管理与LVM实战",
+        "file_name": "linux-disk-lvm-guide.md",
+        "content": """# Linux 磁盘管理与LVM实战
+
+## 1. 磁盘分区管理
+
+```bash
+# 查看磁盘信息
+lsblk
+fdisk -l
+parted -l
+
+# GPT 分区
+gdisk /dev/sdb
+# 或使用 parted
+parted /dev/sdb mklabel gpt
+parted /dev/sdb mkpart primary ext4 0% 100%
+```
+
+## 2. LVM 管理
+
+### 创建逻辑卷
+```bash
+# 创建物理卷
+pvcreate /dev/sdb1 /dev/sdc1
+
+# 创建卷组
+vgcreate data_vg /dev/sdb1 /dev/sdc1
+
+# 创建逻辑卷
+lvcreate -L 100G -n data_lv data_vg
+
+# 格式化并挂载
+mkfs.ext4 /dev/data_vg/data_lv
+mount /dev/data_vg/data_lv /data
+```
+
+### 扩容操作
+```bash
+# 扩展逻辑卷
+lvextend -L +50G /dev/data_vg/data_lv
+
+# 扩展文件系统
+resize2fs /dev/data_vg/data_lv    # ext4
+xfs_growfs /data                    # xfs
+```
+
+### 快照管理
+```bash
+# 创建快照
+lvcreate -L 10G -s -n data_snap /dev/data_vg/data_lv
+
+# 恢复快照
+lvconvert --merge /dev/data_vg/data_snap
+```
+
+## 3. RAID 配置
+
+```bash
+# 创建 RAID 5
+mdadm --create /dev/md0 --level=5 --raid-devices=3 /dev/sd{b,c,d}1
+
+# 查看状态
+cat /proc/mdstat
+mdadm --detail /dev/md0
+
+# 保存配置
+mdadm --detail --scan >> /etc/mdadm.conf
+```""",
+        "created_at": "2026-05-08T16:20:00Z",
+        "updated_at": "2026-05-08T16:20:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_018",
+        "title": "容器化微服务部署规范",
+        "file_name": "containerized-microservices-deployment.md",
+        "content": """# 容器化微服务部署规范
+
+## 1. Dockerfile 编写规范
+
+```dockerfile
+# 多阶段构建
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+
+FROM alpine:3.18
+RUN apk --no-cache add ca-certificates tzdata
+COPY --from=builder /app/server /server
+COPY --from=builder /app/configs /configs
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s \\
+  CMD wget -qO- http://localhost:8080/health || exit 1
+ENTRYPOINT ["/server"]
+```
+
+## 2. K8s 资源配额
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "50"
+```
+
+## 3. 服务网格 Istio
+
+```yaml
+# 流量管理
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my-service
+spec:
+  hosts:
+    - my-service
+  http:
+    - route:
+        - destination:
+            host: my-service
+            subset: v1
+          weight: 90
+        - destination:
+            host: my-service
+            subset: v2
+          weight: 10
+```""",
+        "created_at": "2026-05-05T11:45:00Z",
+        "updated_at": "2026-05-05T11:45:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_019",
+        "title": "Kafka 消息队列运维指南",
+        "file_name": "kafka-operations-guide.md",
+        "content": """# Kafka 消息队列运维指南
+
+## 1. 集群部署
+
+### Docker Compose 部署
+```yaml
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+```
+
+## 2. Topic 管理
+
+```bash
+# 创建 Topic
+kafka-topics.sh --create --topic orders \\
+  --bootstrap-server localhost:9092 \\
+  --partitions 6 --replication-factor 3
+
+# 查看 Topic
+kafka-topics.sh --describe --topic orders \\
+  --bootstrap-server localhost:9092
+
+# 修改分区数
+kafka-topics.sh --alter --topic orders \\
+  --partitions 12 --bootstrap-server localhost:9092
+```
+
+## 3. 消费者组监控
+
+```bash
+# 查看消费者组
+kafka-consumer-groups.sh --list --bootstrap-server localhost:9092
+
+# 查看消费进度
+kafka-consumer-groups.sh --describe --group my-group \\
+  --bootstrap-server localhost:9092
+```""",
+        "created_at": "2026-05-02T08:30:00Z",
+        "updated_at": "2026-05-02T08:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_020",
+        "title": "Elasticsearch 集群运维手册",
+        "file_name": "elasticsearch-cluster-operations.md",
+        "content": """# Elasticsearch 集群运维手册
+
+## 1. 集群健康检查
+
+```bash
+# 查看集群状态
+curl -s localhost:9200/_cluster/health?pretty
+
+# 节点状态
+curl -s localhost:9200/_cat/nodes?v
+
+# 索引状态
+curl -s localhost:9200/_cat/indices?v&s=store.size:desc
+```
+
+## 2. 索引生命周期管理
+
+```json
+PUT _index_template/logs-template
+{
+  "index_patterns": ["logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "index.lifecycle.name": "logs-policy",
+      "index.lifecycle.rollover_alias": "logs"
+    }
+  }
+}
+
+PUT _ilm/policy/logs-policy
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_size": "50gb",
+            "max_age": "1d"
+          }
+        }
+      },
+      "warm": {
+        "min_age": "7d",
+        "actions": {
+          "shrink": { "number_of_shards": 1 },
+          "forcemerge": { "max_num_segments": 1 }
+        }
+      },
+      "delete": {
+        "min_age": "30d",
+        "actions": { "delete": {} }
+      }
+    }
+  }
+}
+```
+
+## 3. 性能优化
+
+```bash
+# 线程池状态
+curl -s localhost:9200/_cat/thread_pool?v
+
+# 热点线程
+curl -s localhost:9200/_nodes/hot_threads
+
+# 分片重分配
+curl -X POST localhost:9200/_cluster/reroute?retry_failed=true
+```""",
+        "created_at": "2026-04-28T15:10:00Z",
+        "updated_at": "2026-04-28T15:10:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_021",
+        "title": "SSH 安全加固与密钥管理",
+        "file_name": "ssh-security-key-management.md",
+        "content": """# SSH 安全加固与密钥管理
+
+## 1. SSH 服务加固
+
+### 修改 /etc/ssh/sshd_config
+```
+# 禁用密码登录
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+
+# 限制登录用户
+AllowUsers deploy admin
+
+# 修改默认端口
+Port 22222
+
+# 禁用 root 登录
+PermitRootLogin no
+
+# 启用公钥认证
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+# 超时设置
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# 限制登录尝试
+MaxAuthTries 3
+LoginGraceTime 60
+```
+
+## 2. SSH 密钥管理
+
+```bash
+# 生成 Ed25519 密钥（推荐）
+ssh-keygen -t ed25519 -C "admin@example.com"
+
+# 使用 ssh-agent 管理密钥
+eval $(ssh-agent -s)
+ssh-add ~/.ssh/id_ed25519
+
+# SSH 跳板机配置
+Host jump
+    HostName jump.example.com
+    Port 22222
+    User deploy
+
+Host target
+    HostName 10.0.0.100
+    User deploy
+    ProxyJump jump
+```
+
+## 3. SSH 审计
+
+```bash
+# 查看 SSH 日志
+journalctl -u sshd --since "1 hour ago"
+
+# 暴力破解检测
+grep "Failed password" /var/log/auth.log | awk '{print $11}' | sort | uniq -c | sort -rn
+```""",
+        "created_at": "2026-04-25T09:15:00Z",
+        "updated_at": "2026-04-25T09:15:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_022",
+        "title": "系统日志分析与故障诊断",
+        "file_name": "system-log-analysis.md",
+        "content": """# 系统日志分析与故障诊断
+
+## 1. systemd 日志管理
+
+```bash
+# 查看服务日志
+journalctl -u nginx --since "2 hours ago"
+
+# 实时跟踪
+journalctl -u nginx -f
+
+# 按优先级过滤
+journalctl -p err -b    # 本次启动的错误日志
+
+# 导出日志
+journalctl -u nginx --since "2026-06-01" --until "2026-06-09" > nginx.log
+```
+
+## 2. 常用日志分析
+
+```bash
+# 统计 HTTP 状态码
+awk '{print $9}' access.log | sort | uniq -c | sort -rn
+
+# 统计访问最多的 IP
+awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -20
+
+# 分析响应时间
+awk '{print $NF, $7}' access.log | sort -rn | head -20
+
+# 错误日志分析
+grep -E "ERROR|FATAL|Exception" app.log | tail -100
+```
+
+## 3. 日志轮转配置
+
+```conf
+# /etc/logrotate.d/myapp
+/var/log/myapp/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    dateext
+    dateformat -%Y%m%d
+}
+```""",
+        "created_at": "2026-04-22T14:30:00Z",
+        "updated_at": "2026-04-22T14:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_023",
+        "title": "Nginx 高性能负载均衡配置",
+        "file_name": "nginx-load-balancing.md",
+        "content": """# Nginx 高性能负载均衡配置
+
+## 1. 负载均衡算法
+
+```nginx
+# 轮询（默认）
+upstream backend {
+    server 10.0.0.1:8080;
+    server 10.0.0.2:8080;
+}
+
+# 加权轮询
+upstream backend {
+    server 10.0.0.1:8080 weight=3;
+    server 10.0.0.2:8080 weight=1;
+}
+
+# IP 哈希（会话保持）
+upstream backend {
+    ip_hash;
+    server 10.0.0.1:8080;
+    server 10.0.0.2:8080;
+}
+
+# 最少连接
+upstream backend {
+    least_conn;
+    server 10.0.0.1:8080;
+    server 10.0.0.2:8080;
+}
+```
+
+## 2. 健康检查
+
+```nginx
+upstream backend {
+    server 10.0.0.1:8080 max_fails=3 fail_timeout=30s;
+    server 10.0.0.2:8080 max_fails=3 fail_timeout=30s;
+}
+
+proxy_next_upstream error timeout http_502 http_503;
+proxy_next_upstream_tries 3;
+```
+
+## 3. 缓存配置
+
+```nginx
+# 缓存路径
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:100m max_size=10g;
+
+server {
+    location /api/ {
+        proxy_cache my_cache;
+        proxy_cache_valid 200 10m;
+        proxy_cache_valid 404 1m;
+        proxy_cache_key "$scheme$request_method$host$request_uri";
+        add_header X-Cache-Status $upstream_cache_status;
+    }
+}
+```""",
+        "created_at": "2026-04-19T10:50:00Z",
+        "updated_at": "2026-04-19T10:50:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_024",
+        "title": "etcd 集群部署与运维",
+        "file_name": "etcd-cluster-operations.md",
+        "content": """# etcd 集群部署与运维
+
+## 1. 集群部署
+
+### 二进制部署
+```bash
+# 启动 etcd 节点
+etcd --name etcd1 \\
+    --initial-advertise-peer-urls https://10.0.0.1:2380 \\
+    --listen-peer-urls https://10.0.0.1:2380 \\
+    --listen-client-urls https://10.0.0.1:2379,https://127.0.0.1:2379 \\
+    --advertise-client-urls https://10.0.0.1:2379 \\
+    --initial-cluster-token etcd-cluster-1 \\
+    --initial-cluster etcd1=https://10.0.0.1:2380,etcd2=https://10.0.0.2:2380,etcd3=https://10.0.0.3:2380 \\
+    --initial-cluster-state new
+```
+
+## 2. 健康检查
+
+```bash
+# 成员列表
+etcdctl member list --write-out=table
+
+# 集群健康
+etcdctl endpoint health --cluster
+
+# 端点状态
+etcdctl endpoint status --cluster --write-out=table
+```
+
+## 3. 数据维护
+
+```bash
+# 备份
+etcdctl snapshot save /backup/etcd-snapshot-$(date +%Y%m%d).db
+
+# 恢复
+etcdctl snapshot restore /backup/etcd-snapshot.db --data-dir=/var/lib/etcd-restored
+
+# 碎片整理
+etcdctl defrag --cluster
+```""",
+        "created_at": "2026-04-15T16:25:00Z",
+        "updated_at": "2026-04-15T16:25:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_025",
+        "title": "容器镜像仓库 Harbor 部署指南",
+        "file_name": "harbor-registry-deployment.md",
+        "content": """# 容器镜像仓库 Harbor 部署指南
+
+## 1. 安装部署
+
+### 下载与配置
+```bash
+# 下载 Harbor
+wget https://github.com/goharbor/harbor/releases/download/v2.9.0/harbor-offline-installer-v2.9.0.tgz
+tar xzf harbor-offline-installer-v2.9.0.tgz
+cd harbor
+
+# 复制并修改配置
+cp harbor.yml.tmpl harbor.yml
+```
+
+### harbor.yml 关键配置
+```yaml
+hostname: harbor.example.com
+http:
+  port: 80
+https:
+  port: 443
+  certificate: /etc/ssl/certs/harbor.crt
+  private_key: /etc/ssl/private/harbor.key
+harbor_admin_password: Harbor12345
+database:
+  password: root123
+data_volume: /data/harbor
+```
+
+## 2. 镜像同步
+
+```bash
+# 登录 Harbor
+docker login harbor.example.com
+
+# 推送镜像
+docker tag myapp:latest harbor.example.com/myproject/myapp:latest
+docker push harbor.example.com/myproject/myapp:latest
+
+# 使用 Skopeo 同步
+skopeo sync docker://harbor-src.example.com/app docker://harbor-dst.example.com/app
+```
+
+## 3. 项目管理
+
+```bash
+# 使用 Harbor API 创建项目
+curl -k -u admin:Harbor12345 -X POST \\
+  https://harbor.example.com/api/v2.0/projects \\
+  -H "Content-Type: application/json" \\
+  -d '{"project_name": "production", "public": false}'
+```""",
+        "created_at": "2026-04-12T12:00:00Z",
+        "updated_at": "2026-04-12T12:00:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_026",
+        "title": "TCP/IP 协议与网络编程基础",
+        "file_name": "tcpip-network-programming.md",
+        "content": """# TCP/IP 协议与网络编程基础
+
+## 1. TCP 三次握手与四次挥手
+
+### 三次握手
+```
+Client → SYN → Server
+Client ← SYN+ACK ← Server
+Client → ACK → Server
+```
+
+### 四次挥手
+```
+Client → FIN → Server
+Client ← ACK ← Server
+Client ← FIN ← Server
+Client → ACK → Server
+```
+
+## 2. Socket 编程示例
+
+### Python TCP Server
+```python
+import socket
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(('0.0.0.0', 8080))
+server.listen(5)
+
+while True:
+    conn, addr = server.accept()
+    data = conn.recv(4096)
+    conn.sendall(b'HTTP/1.1 200 OK\\r\\n\\r\\nHello')
+    conn.close()
+```
+
+## 3. 网络性能调优
+
+```bash
+# TCP 缓冲区
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+
+# TCP BBR 拥塞控制
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+```""",
+        "created_at": "2026-04-10T09:35:00Z",
+        "updated_at": "2026-04-10T09:35:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_027",
+        "title": "Kubernetes Pod 调度策略详解",
+        "file_name": "k8s-pod-scheduling.md",
+        "content": """# Kubernetes Pod 调度策略详解
+
+## 1. nodeSelector
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-pod
+spec:
+  nodeSelector:
+    accelerator: nvidia-tesla-v100
+  containers:
+    - name: gpu-app
+      image: myapp:latest
+```
+
+## 2. Affinity 亲和性
+
+```yaml
+spec:
+  affinity:
+    # 节点亲和性
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values: ["zone-a", "zone-b"]
+
+    # Pod 反亲和性（分散部署）
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["web"]
+            topologyKey: kubernetes.io/hostname
+```
+
+## 3. Taint 与 Toleration
+
+```bash
+# 给节点添加 Taint
+kubectl taint nodes node1 dedicated=gpu:NoSchedule
+
+# Pod 配置 Toleration
+spec:
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "gpu"
+      effect: "NoSchedule"
+```
+
+## 4. 资源请求与限制
+
+```yaml
+containers:
+  - name: app
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "512Mi"
+```""",
+        "created_at": "2026-04-08T11:20:00Z",
+        "updated_at": "2026-04-08T11:20:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_028",
+        "title": "系统安全基线检查清单",
+        "file_name": "security-baseline-checklist.md",
+        "content": """# 系统安全基线检查清单
+
+## 1. 账户安全
+
+### 密码策略
+```bash
+# /etc/login.defs
+PASS_MAX_DAYS   90
+PASS_MIN_DAYS   7
+PASS_MIN_LEN    12
+PASS_WARN_AGE   14
+
+# 检查空密码账户
+awk -F: '($2 == "") {print $1}' /etc/shadow
+
+# 检查 UID 为 0 的账户
+awk -F: '($3 == 0) {print $1}' /etc/passwd
+```
+
+### 登录限制
+```bash
+# /etc/pam.d/sshd
+auth required pam_tally2.so deny=5 unlock_time=900
+
+# 超时自动注销
+# /etc/profile
+TMOUT=600
+export TMOUT
+```
+
+## 2. 文件权限
+
+```bash
+# 关键文件权限检查
+stat -c "%a %U %G" /etc/passwd /etc/shadow /etc/sudoers
+
+# 查找 SUID 文件
+find / -perm -4000 -type f 2>/dev/null
+
+# 查找 world-writable 文件
+find / -perm -0002 -type f 2>/dev/null
+```
+
+## 3. 服务安全
+
+```bash
+# 禁用不必要的服务
+systemctl disable avahi-daemon
+systemctl disable cups
+systemctl disable rpcbind
+
+# 检查监听端口
+ss -tlnp
+```""",
+        "created_at": "2026-04-05T14:40:00Z",
+        "updated_at": "2026-04-05T14:40:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_029",
+        "title": "Terraform 基础设施即代码实践",
+        "file_name": "terraform-iac-practice.md",
+        "content": """# Terraform 基础设施即代码实践
+
+## 1. Provider 配置
+
+```hcl
+# main.tf
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+  backend "s3" {
+    bucket = "terraform-state"
+    key    = "prod/terraform.tfstate"
+    region = "ap-east-1"
+  }
+}
+
+provider "aws" {
+  region = "ap-east-1"
+}
+```
+
+## 2. 资源定义
+
+```hcl
+# EC2 实例
+resource "aws_instance" "web" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t3.micro"
+  key_name      = aws_key_pair.deployer.key_name
+
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
+
+  tags = {
+    Name = "web-server"
+  }
+}
+
+# 安全组
+resource "aws_security_group" "web_sg" {
+  name        = "web-sg"
+  description = "Web server security group"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+```
+
+## 3. 常用命令
+
+```bash
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+terraform state list
+terraform destroy
+```""",
+        "created_at": "2026-04-02T10:10:00Z",
+        "updated_at": "2026-04-02T10:10:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_030",
+        "title": "Kubernetes HPA 自动伸缩配置",
+        "file_name": "k8s-hpa-autoscaling.md",
+        "content": """# Kubernetes HPA 自动伸缩配置
+
+## 1. 基于 CPU 的 HPA
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+```
+
+## 2. 基于内存的 HPA
+
+```yaml
+metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+## 3. 基于自定义指标
+
+```yaml
+metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+```
+
+## 4. PodDisruptionBudget
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: web
+```""",
+        "created_at": "2026-03-30T15:45:00Z",
+        "updated_at": "2026-03-30T15:45:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_031",
+        "title": "MySQL 主从复制配置指南",
+        "file_name": "mysql-replication-setup.md",
+        "content": """# MySQL 主从复制配置指南
+
+## 1. 主库配置
+
+### my.cnf 配置
+```ini
+[mysqld]
+server-id = 1
+log-bin = mysql-bin
+binlog-format = ROW
+binlog-do-db = mydb
+sync_binlog = 1
+innodb_flush_log_at_trx_commit = 1
+```
+
+### 创建复制用户
+```sql
+CREATE USER 'repl_user'@'%' IDENTIFIED BY 'strong_password';
+GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+FLUSH PRIVILEGES;
+
+-- 查看主库状态
+SHOW MASTER STATUS;
+```
+
+## 2. 从库配置
+
+### my.cnf 配置
+```ini
+[mysqld]
+server-id = 2
+relay-log = relay-bin
+read_only = 1
+super_read_only = 1
+```
+
+### 配置复制
+```sql
+CHANGE MASTER TO
+    MASTER_HOST = '10.0.0.1',
+    MASTER_USER = 'repl_user',
+    MASTER_PASSWORD = 'strong_password',
+    MASTER_LOG_FILE = 'mysql-bin.000001',
+    MASTER_LOG_POS = 154;
+
+START SLAVE;
+SHOW SLAVE STATUS\\G
+```
+
+## 3. 复制监控
+
+```sql
+-- 检查从库状态
+SHOW SLAVE STATUS\\G
+-- 关注: Slave_IO_Running, Slave_SQL_Running, Seconds_Behind_Master
+
+-- 主库查看从库连接
+SHOW SLAVE HOSTS;
+```""",
+        "created_at": "2026-03-28T09:20:00Z",
+        "updated_at": "2026-03-28T09:20:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_032",
+        "title": "Linux 进程管理与调试技巧",
+        "file_name": "linux-process-management.md",
+        "content": """# Linux 进程管理与调试技巧
+
+## 1. 进程监控
+
+```bash
+# 查看进程
+ps aux | grep nginx
+ps -eo pid,ppid,%cpu,%mem,cmd --sort=-%cpu | head -20
+
+# 实时监控
+top -Hp <pid>    # 查看线程
+htop              # 增强版 top
+
+# 进程树
+pstree -p <pid>
+```
+
+## 2. 进程调试
+
+```bash
+# strace 跟踪系统调用
+strace -p <pid> -e trace=network
+strace -f -p <pid> -o trace.log
+
+# ltrace 跟踪库调用
+ltrace -p <pid>
+
+# gdb 调试
+gdb -p <pid>
+(gdb) bt          # 查看调用栈
+(gdb) info threads  # 查看所有线程
+```
+
+## 3. 信号管理
+
+```bash
+# 常用信号
+kill -15 <pid>    # SIGTERM 正常终止
+kill -9 <pid>     # SIGKILL 强制终止
+kill -1 <pid>     # SIGHUP 重载配置
+
+# 查看信号
+kill -l
+```""",
+        "created_at": "2026-03-25T14:10:00Z",
+        "updated_at": "2026-03-25T14:10:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_033",
+        "title": "Git 分支管理与工作流",
+        "file_name": "git-branch-workflow.md",
+        "content": """# Git 分支管理与工作流
+
+## 1. 分支策略
+
+### Git Flow
+```
+main (production)
+  └── develop
+       ├── feature/login
+       ├── feature/dashboard
+       ├── release/v1.2.0
+       └── hotfix/fix-login
+```
+
+### Trunk-Based Development
+```
+main (trunk)
+  ├── feature/short-lived-1
+  └── feature/short-lived-2
+```
+
+## 2. 常用命令
+
+```bash
+# 创建并切换分支
+git checkout -b feature/new-api
+git switch -c feature/new-api
+
+# 合并分支
+git merge --no-ff feature/new-api
+
+# 变基
+git rebase main
+
+# Cherry-pick
+git cherry-pick <commit-hash>
+
+# 暂存
+git stash
+git stash pop
+git stash list
+```
+
+## 3. 冲突解决
+
+```bash
+# 查看冲突
+git status
+
+# 解决后标记为已解决
+git add <resolved-file>
+git commit
+```""",
+        "created_at": "2026-03-22T11:35:00Z",
+        "updated_at": "2026-03-22T11:35:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_034",
+        "title": "Ceph 分布式存储运维指南",
+        "file_name": "ceph-storage-operations.md",
+        "content": """# Ceph 分布式存储运维指南
+
+## 1. 集群监控
+
+```bash
+# 集群状态
+ceph -s
+ceph health detail
+
+# OSD 列表
+ceph osd tree
+ceph osd df
+
+# 存储池
+ceph osd pool ls detail
+ceph df
+```
+
+## 2. 存储池管理
+
+```bash
+# 创建存储池
+ceph osd pool create mypool 64 64 replicated
+
+# 设置副本数
+ceph osd pool set mypool size 3
+
+# 启用 rbd
+ceph osd pool application enable mypool rbd
+```
+
+## 3. RBD 管理
+
+```bash
+# 创建镜像
+rbd create mypool/disk1 --size 100G
+
+# 列出镜像
+rbd ls mypool
+
+# 调整大小
+rbd resize mypool/disk1 --size 200G
+
+# 快照
+rbd snap create mypool/disk1@snap1
+rbd snap rollback mypool/disk1@snap1
+```""",
+        "created_at": "2026-03-20T16:55:00Z",
+        "updated_at": "2026-03-20T16:55:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_035",
+        "title": "Web 应用常见漏洞与防护",
+        "file_name": "web-app-vulnerabilities-protection.md",
+        "content": """# Web 应用常见漏洞与防护
+
+## 1. SQL 注入防护
+
+```python
+# 参数化查询（推荐）
+cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+
+# ORM 查询
+user = User.objects.get(id=user_id)
+```
+
+## 2. XSS 防护
+
+```html
+<!-- 输出编码 -->
+<div>{{ user_input | escape }}</div>
+
+<!-- CSP 头 -->
+Content-Security-Policy: default-src 'self'; script-src 'self'
+```
+
+## 3. CSRF 防护
+
+```python
+# Django CSRF Token
+{% csrf_token %}
+
+# 请求验证
+@csrf_protect
+def my_view(request):
+    pass
+```
+
+## 4. 文件上传安全
+
+```python
+# 文件类型验证
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg'}
+def allowed_file(filename):
+    return '.' in filename and \\
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# 文件大小限制
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+```""",
+        "created_at": "2026-03-18T10:25:00Z",
+        "updated_at": "2026-03-18T10:25:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_036",
+        "title": "容器日志收集与分析方案",
+        "file_name": "container-log-collection-analysis.md",
+        "content": """# 容器日志收集与分析方案
+
+## 1. 日志驱动配置
+
+### Docker 日志配置
+```json
+// /etc/docker/daemon.json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+```
+
+### K8s 日志收集
+```yaml
+# DaemonSet 部署 Fluentd
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    spec:
+      containers:
+        - name: fluentd
+          image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch8
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: containers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+```
+
+## 2. 日志格式规范
+
+```json
+{
+  "timestamp": "2026-06-09T10:30:00Z",
+  "level": "INFO",
+  "service": "user-api",
+  "trace_id": "abc123def456",
+  "message": "User login successful",
+  "metadata": {
+    "user_id": "12345",
+    "ip": "192.168.1.100"
+  }
+}
+```""",
+        "created_at": "2026-03-15T13:50:00Z",
+        "updated_at": "2026-03-15T13:50:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_037",
+        "title": "系统性能压测与基准测试",
+        "file_name": "performance-benchmark-testing.md",
+        "content": """# 系统性能压测与基准测试
+
+## 1. CPU 压测
+
+```bash
+# sysbench CPU
+sysbench cpu --threads=4 --time=60 run
+
+# stress-ng
+stress-ng --cpu 4 --timeout 60s --metrics-brief
+```
+
+## 2. 内存压测
+
+```bash
+# sysbench 内存
+sysbench memory --memory-block-size=1M --memory-total-size=10G run
+
+# dd 测试
+dd if=/dev/zero of=/tmp/test bs=1M count=1024 oflag=direct
+```
+
+## 3. 磁盘 I/O 压测
+
+```bash
+# fio 随机读写
+fio --name=randread --ioengine=libaio --iodepth=16 \\
+    --rw=randread --bs=4k --direct=1 --size=1G --numjobs=4
+
+# dd 顺序写入
+dd if=/dev/zero of=/tmp/test bs=1M count=1024
+```
+
+## 4. 网络压测
+
+```bash
+# iperf3
+# 服务端
+iperf3 -s
+
+# 客户端
+iperf3 -c 10.0.0.1 -t 30 -P 4
+```""",
+        "created_at": "2026-03-12T09:15:00Z",
+        "updated_at": "2026-03-12T09:15:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_038",
+        "title": "Prometheus 告警规则编写指南",
+        "file_name": "prometheus-alerting-rules.md",
+        "content": """# Prometheus 告警规则编写指南
+
+## 1. 告警规则模板
+
+```yaml
+# alert_rules.yml
+groups:
+  - name: application_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx 错误率超过 5%"
+          description: "当前错误率: {{ $value | humanizePercentage }}"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 延迟超过 2 秒"
+          description: "当前 P95: {{ $value }}s"
+```
+
+## 2. Alertmanager 配置
+
+```yaml
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'slack-notifications'
+
+receivers:
+  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/xxx'
+        channel: '#alerts'
+        text: "{{ .CommonAnnotations.summary }}"
+```""",
+        "created_at": "2026-03-10T14:30:00Z",
+        "updated_at": "2026-03-10T14:30:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_039",
+        "title": "Kubernetes 服务网格 Istio 实践",
+        "file_name": "istio-service-mesh-practice.md",
+        "content": """# Kubernetes 服务网格 Istio 实践
+
+## 1. 安装 Istio
+
+```bash
+# 下载 Istio
+curl -L https://istio.io/downloadIstio | sh -
+cd istio-*
+export PATH=$PWD/bin:$PATH
+
+# 安装
+istioctl install --set profile=demo -y
+```
+
+## 2. 流量管理
+
+```yaml
+# 金丝雀发布
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+    - route:
+        - destination:
+            host: reviews
+            subset: v1
+          weight: 90
+        - destination:
+            host: reviews
+            subset: v2
+          weight: 10
+```
+
+## 3. 安全策略
+
+```yaml
+# mTLS 强制
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+
+# 授权策略
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: reviews-viewer
+spec:
+  selector:
+    matchLabels:
+      app: reviews
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/default/sa/bookinfo-productpage"]
+```""",
+        "created_at": "2026-03-08T11:45:00Z",
+        "updated_at": "2026-03-08T11:45:00Z",
+        "status": "indexed",
+    },
+    {
+        "id": "doc_040",
+        "title": "数据库连接池配置与优化",
+        "file_name": "database-connection-pool-tuning.md",
+        "content": """# 数据库连接池配置与优化
+
+## 1. HikariCP 配置（Java）
+
+```yaml
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: MyHikariCP
+```
+
+## 2. SQLAlchemy 连接池（Python）
+
+```python
+from sqlalchemy import create_engine
+
+engine = create_engine(
+    "postgresql://user:pass@localhost/db",
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True
+)
+```
+
+## 3. 连接池监控
+
+```sql
+-- MySQL 查看连接
+SHOW STATUS LIKE 'Threads_connected';
+SHOW PROCESSLIST;
+
+-- PostgreSQL
+SELECT count(*) FROM pg_stat_activity;
+SELECT state, count(*) FROM pg_stat_activity GROUP BY state;
+```""",
+        "created_at": "2026-03-05T16:20:00Z",
+        "updated_at": "2026-03-05T16:20:00Z",
+        "status": "indexed",
+    },
 ]
 
 

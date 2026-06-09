@@ -370,6 +370,1544 @@ _SCENARIO_INJECTION = DemoScenario(
 
 
 # ============================================================
+# 新增 Safe 场景（用于降低拦截率到 15%-30%）
+# ============================================================
+
+# ---- 场景 4：磁盘空间查询（Safe）----
+_SCENARIO_DISK_QUERY = DemoScenario(
+    name="磁盘空间查询",
+    trigger_keywords=["磁盘空间", "查看磁盘", "df", "磁盘使用情况"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_disk_usage",
+            "args": {},
+            "result": {
+                "disks": [
+                    {"device": "/dev/sda1", "mountpoint": "/", "total": "100G", "used": "70G", "free": "30G", "percent": 70},
+                    {"device": "/dev/sda2", "mountpoint": "/home", "total": "200G", "used": "80G", "free": "120G", "percent": 40},
+                ],
+                "status": "磁盘使用正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**分析磁盘使用情况：**\n\n",
+        "1. **根分区 (/)** — 使用率 70%，剩余 30GB，状态正常\n",
+        "2. ** home 分区 ** — 使用率 40%，剩余 120GB，空间充足\n",
+        "3. ** 整体评估 ** — 磁盘使用健康，无需清理\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 磁盘空间使用情况
+
+| 分区 | 总容量 | 已使用 | 可用 | 使用率 | 状态 |
+|------|--------|--------|------|--------|------|
+| / | 100GB | 70GB | 30GB | 70% | 正常 |
+| /home | 200GB | 80GB | 120GB | 40% | 良好 |
+
+### 评估结论
+
+磁盘使用情况良好，无需进行清理操作。建议当使用率超过 85% 时再进行清理。""",
+)
+
+# ---- 场景 5：进程查看（Safe）----
+_SCENARIO_PROCESS_QUERY = DemoScenario(
+    name="进程状态查询",
+    trigger_keywords=["查看进程", "进程列表", "ps aux", "top", "运行中的进程"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_process_list",
+            "args": {"limit": 5},
+            "result": {
+                "processes": [
+                    {"pid": 1234, "name": "nginx", "cpu_percent": 2.1, "memory_rss": "500MB", "status": "running"},
+                    {"pid": 2345, "name": "mysqld", "cpu_percent": 1.5, "memory_rss": "2GB", "status": "running"},
+                    {"pid": 3456, "name": "python3", "cpu_percent": 0.8, "memory_rss": "300MB", "status": "running"},
+                ],
+                "status": "进程运行正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**分析系统进程：**\n\n",
+        "1. **nginx** — PID 1234，CPU 2.1%，内存 500MB，运行正常\n",
+        "2. **mysqld** — PID 2345，CPU 1.5%，内存 2GB，数据库服务稳定\n",
+        "3. **python3** — PID 3456，CPU 0.8%，内存 300MB，应用进程正常\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 系统进程状态
+
+| PID | 进程名 | CPU% | 内存 | 状态 |
+|-----|--------|------|------|------|
+| 1234 | nginx | 2.1% | 500MB | 运行中 |
+| 2345 | mysqld | 1.5% | 2GB | 运行中 |
+| 3456 | python3 | 0.8% | 300MB | 运行中 |
+
+### 评估结论
+
+所有关键进程运行正常，系统负载在合理范围内。""",
+)
+
+# ---- 场景 6：内存使用查询（Safe）----
+_SCENARIO_MEMORY_QUERY = DemoScenario(
+    name="内存使用查询",
+    trigger_keywords=["查看内存", "内存使用", "free", "内存情况", "内存状态"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "memory": {
+                    "total": "12GB",
+                    "used": "8GB",
+                    "free": "4GB",
+                    "percent": 66.7,
+                },
+                "swap": {
+                    "total": "4GB",
+                    "used": "0.5GB",
+                    "free": "3.5GB",
+                    "percent": 12.5,
+                },
+                "status": "内存使用正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**分析内存使用情况：**\n\n",
+        "1. **物理内存** — 总容量 12GB，使用 8GB（66.7%），剩余 4GB\n",
+        "2. **Swap 交换分区** — 使用率 12.5%，使用较少\n",
+        "3. **整体评估** — 内存使用健康，无内存压力\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 内存使用情况
+
+| 类型 | 总量 | 已使用 | 可用 | 使用率 | 状态 |
+|------|------|--------|------|--------|------|
+| 物理内存 | 12GB | 8GB | 4GB | 66.7% | 正常 |
+| Swap | 4GB | 0.5GB | 3.5GB | 12.5% | 良好 |
+
+### 评估结论
+
+内存使用情况良好，系统运行流畅，无内存压力。""",
+)
+
+# ---- 场景 7：网络连接查询（Safe）----
+_SCENARIO_NETWORK_QUERY = DemoScenario(
+    name="网络连接查询",
+    trigger_keywords=["查看网络", "网络连接", "netstat", "ss", "端口监听"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_network_connections",
+            "args": {},
+            "result": {
+                "connections": [
+                    {"local": "0.0.0.0:22", "remote": "10.0.0.5:49832", "state": "ESTABLISHED", "service": "sshd"},
+                    {"local": "0.0.0.0:80", "remote": "192.168.1.100:52341", "state": "ESTABLISHED", "service": "nginx"},
+                ],
+                "listening": [
+                    {"port": 22, "service": "sshd"},
+                    {"port": 80, "service": "nginx"},
+                    {"port": 3306, "service": "mysqld"},
+                ],
+                "status": "网络连接正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**分析网络连接：**\n\n",
+        "1. **SSH 连接** — 端口 22，来自 10.0.0.5，管理连接正常\n",
+        "2. **HTTP 服务** — 端口 80，来自 192.168.1.100，Web 服务正常\n",
+        "3. **监听端口** — 22(SSH)、80(HTTP)、3306(MySQL) 正常监听\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 网络连接状态
+
+### 活跃连接
+
+| 本地地址 | 远程地址 | 状态 | 服务 |
+|----------|----------|------|------|
+| 0.0.0.0:22 | 10.0.0.5:49832 | ESTABLISHED | sshd |
+| 0.0.0.0:80 | 192.168.1.100:52341 | ESTABLISHED | nginx |
+
+### 监听端口
+
+| 端口 | 服务 | 状态 |
+|------|------|------|
+| 22 | sshd | 监听中 |
+| 80 | nginx | 监听中 |
+| 3306 | mysqld | 监听中 |
+
+### 评估结论
+
+网络连接正常，所有关键服务端口正常监听。""",
+)
+
+# ---- 场景 8：系统负载查询（Safe）----
+_SCENARIO_LOAD_QUERY = DemoScenario(
+    name="系统负载查询",
+    trigger_keywords=["系统负载", "查看负载", "uptime", "load average", "系统压力"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "load": {"1min": 1.2, "5min": 1.5, "15min": 1.3},
+                "cpu_count": 4,
+                "uptime": "10 days, 2 hours",
+                "status": "系统负载正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**分析系统负载：**\n\n",
+        "1. **1分钟负载** — 1.2，低于 CPU 核心数（4），负载较轻\n",
+        "2. **5分钟负载** — 1.5，趋势平稳\n",
+        "3. **15分钟负载** — 1.3，长期负载健康\n",
+        "4. **系统运行时间** — 已连续运行 10 天 2 小时，稳定性良好\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 系统负载情况
+
+| 时间范围 | 负载值 | CPU核心数 | 状态 |
+|----------|--------|-----------|------|
+| 1分钟 | 1.2 | 4 | 轻载 |
+| 5分钟 | 1.5 | 4 | 正常 |
+| 15分钟 | 1.3 | 4 | 正常 |
+
+### 系统信息
+
+- **运行时间**: 10 天 2 小时
+- **CPU 核心**: 4 核
+- **整体状态**: 系统负载健康，运行稳定
+
+### 评估结论
+
+系统负载在合理范围内，无需进行性能优化。""",
+)
+
+
+# ============================================================
+# 知识库文档场景（基于40篇文档内容）
+# ============================================================
+
+# ---- 场景 9：Linux CPU 性能调优 ----
+_SCENARIO_CPU_TUNING = DemoScenario(
+    name="Linux CPU 性能调优",
+    trigger_keywords=["CPU调优", "CPU频率", "governor", "CPU亲和性", "CPU性能优化", "性能调节"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "cpu_governor": "ondemand",
+                "cpu_freq": "2.4GHz",
+                "status": "CPU配置正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**CPU 性能调优分析：**\n\n",
+        "1. **当前 Governor** — ondemand，根据负载动态调整频率（推荐）\n",
+        "2. **可选 Governor** — performance（最高频率）、powersave（最低频率）、schedutil（调度器集成）\n",
+        "3. **CPU 亲和性** — 可通过 taskset 绑定进程到特定核心\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Linux CPU 性能调优指南
+
+### CPU 频率调节器（Governor）
+
+| Governor | 特点 | 适用场景 |
+|----------|------|----------|
+| performance | 锁定最高频率 | 计算密集型任务 |
+| powersave | 锁定最低频率 | 节能场景 |
+| ondemand | 根据负载动态调整 | **推荐（当前使用）** |
+| schedutil | 利用内核调度器数据 | 低延迟场景 |
+
+### 查看当前 Governor
+
+```bash
+cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+```
+
+### CPU 亲和性绑定
+
+将关键进程绑定到特定 CPU 核心，减少缓存未命中：
+
+```bash
+taskset -c 0-3 <command>
+```
+
+### 建议
+
+当前系统使用 ondemand governor，适合大多数场景。如需更高性能，可切换到 performance 模式。""",
+)
+
+
+# ---- 场景 10：Kubernetes Pod 故障排查 ----
+_SCENARIO_K8S_POD_TROUBLESHOOT = DemoScenario(
+    name="Kubernetes Pod 故障排查",
+    trigger_keywords=["Pod故障", "Pending状态", "CrashLoopBackOff", "ImagePullBackOff", "K8s排查", "Pod排查"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "k8s_version": "v1.28.0",
+                "pod_status": "需要排查",
+                "status": "K8s 集群运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Kubernetes Pod 故障分析：**\n\n",
+        "1. **Pending 状态** — 常见原因：资源不足、节点选择器不匹配、PVC 未绑定\n",
+        "2. **CrashLoopBackOff** — 容器反复崩溃，需查看日志定位根因\n",
+        "3. **ImagePullBackOff** — 镜像拉取失败，检查镜像名称和仓库访问\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Kubernetes Pod 故障排查手册
+
+### 1. Pod 处于 Pending 状态
+
+常见原因：
+- **资源不足**: 集群中没有足够的 CPU/内存资源调度 Pod
+  ```bash
+  kubectl describe pod <pod-name> -n <namespace>
+  # 查看 Events 部分的 FailedScheduling 原因
+  ```
+- **节点选择器不匹配**: nodeSelector / nodeAffinity 没有匹配的节点
+  ```bash
+  kubectl get nodes --show-labels
+  kubectl describe pod <pod-name> -n <namespace> | grep -A5 "Node-Selectors"
+  ```
+- **PersistentVolumeClaim 未绑定**: PV 不足或 StorageClass 不存在
+  ```bash
+  kubectl get pvc -n <namespace>
+  kubectl describe pvc <pvc-name> -n <namespace>
+  ```
+
+### 2. Pod 处于 CrashLoopBackOff 状态
+
+```bash
+# 查看最近日志
+kubectl logs <pod-name> -n <namespace> --tail=100
+
+# 查看上一次崩溃的日志
+kubectl logs <pod-name> -n <namespace> --previous
+
+# 进入调试容器
+kubectl debug -it <pod-name> -n <namespace> --image=busybox
+```
+
+### 3. Pod 处于 ImagePullBackOff 状态
+
+- 检查镜像名称和 tag 是否正确
+- 检查节点是否能访问镜像仓库
+- 如果是私有仓库，检查 imagePullSecrets 配置""",
+)
+
+
+# ---- 场景 11：Nginx 安全加固 ----
+_SCENARIO_NGINX_SECURITY = DemoScenario(
+    name="Nginx 安全加固",
+    trigger_keywords=["Nginx安全", "Nginx加固", "隐藏版本", "SSL配置", "安全响应头", "Nginx防护"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "nginx_version": "1.24.0",
+                "ssl_enabled": True,
+                "status": "Nginx 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Nginx 安全分析：**\n\n",
+        "1. **版本隐藏** — server_tokens off 防止暴露版本信息\n",
+        "2. **安全响应头** — X-Frame-Options、X-XSS-Protection、CSP 等\n",
+        "3. **SSL/TLS 加固** — 使用 TLSv1.2/1.3，配置强密码套件\n",
+        "4. **请求限制** — 限制请求大小、连接数、频率\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Nginx 安全加固配置指南
+
+### 1. 隐藏版本信息
+
+```nginx
+server_tokens off;
+```
+
+### 2. 配置安全响应头
+
+```nginx
+# 防止点击劫持
+add_header X-Frame-Options "SAMEORIGIN" always;
+
+# XSS 防护
+add_header X-XSS-Protection "1; mode=block" always;
+
+# 内容类型嗅探防护
+add_header X-Content-Type-Options "nosniff" always;
+
+# 严格的传输安全 (需 HTTPS)
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+# 内容安全策略
+add_header Content-Security-Policy "default-src 'self'" always;
+```
+
+### 3. SSL/TLS 加固
+
+```nginx
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
+ssl_prefer_server_ciphers on;
+
+# 启用 OCSP Stapling
+ssl_stapling on;
+ssl_stapling_verify on;
+```
+
+### 4. 请求限制
+
+```nginx
+# 限制请求大小
+client_max_body_size 10m;
+
+# 限制单个 IP 连接数
+limit_conn_zone $binary_remote_addr zone=addr:10m;
+limit_conn addr 100;
+
+# 限制请求频率
+limit_req_zone $binary_remote_addr zone=req_limit:10m rate=10r/s;
+limit_req zone=req_limit burst=20 nodelay;
+```""",
+)
+
+
+# ---- 场景 12：MySQL 运维规范 ----
+_SCENARIO_MYSQL_OPS = DemoScenario(
+    name="MySQL 数据库运维",
+    trigger_keywords=["MySQL备份", "MySQL运维", "慢查询", "MySQL性能", "数据库备份", "MySQL监控"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "mysql_version": "8.0.35",
+                "slow_query_enabled": True,
+                "status": "MySQL 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**MySQL 运维分析：**\n\n",
+        "1. **备份策略** — 全量备份 + 增量备份（基于 binlog）\n",
+        "2. **慢查询监控** — 开启慢查询日志，定位性能瓶颈\n",
+        "3. **性能指标** — 连接数使用率、缓冲池命中率、索引使用情况\n",
+        "4. **安全管理** — 用户权限管理、密码策略\n\n",
+    ],
+    safety_report=None,
+    final_response="""## MySQL 数据库运维规范
+
+### 1. 备份策略
+
+#### 全量备份
+```bash
+# 使用 mysqldump（适合中小规模数据库）
+mysqldump --single-transaction --routines --triggers --events \\
+    --all-databases > /backup/mysql_full_$(date +%Y%m%d).sql
+
+# 使用 XtraBackup（适合大规模数据库）
+xtrabackup --backup --target-dir=/backup/xtrabackup_$(date +%Y%m%d)
+```
+
+#### 增量备份
+```bash
+# 基于 binlog 的增量恢复
+mysqlbinlog --start-datetime="2026-06-07 00:00:00" \\
+    --stop-datetime="2026-06-07 12:00:00" \\
+    mysql-bin.000001 > /backup/incremental.sql
+```
+
+### 2. 慢查询日志
+
+```sql
+-- 开启慢查询日志
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL slow_query_log_file = '/var/log/mysql/slow.log';
+SET GLOBAL long_query_time = 2;
+
+-- 查看慢查询配置
+SHOW VARIABLES LIKE '%slow_query%';
+```
+
+### 3. 性能监控
+
+```sql
+-- 连接数使用率
+SELECT (COUNT(*) / @@max_connections) * 100 AS connection_usage_pct
+FROM information_schema.processlist;
+
+-- InnoDB 缓冲池命中率
+SELECT 
+    ROUND((1 - Innodb_buffer_pool_reads / Innodb_buffer_pool_read_requests) * 100, 2) AS hit_rate_pct
+FROM information_schema.INNODB_BUFFER_POOL_STATS;
+```""",
+)
+
+
+# ---- 场景 13：Prometheus 监控部署 ----
+_SCENARIO_PROMETHEUS_SETUP = DemoScenario(
+    name="Prometheus 监控部署",
+    trigger_keywords=["Prometheus部署", "Grafana配置", "监控部署", "Node Exporter", "告警规则"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "prometheus_version": "v2.47.0",
+                "grafana_version": "v10.1.0",
+                "status": "监控平台运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Prometheus 监控分析：**\n\n",
+        "1. **架构组件** — Prometheus（采集存储）+ Grafana（可视化）+ Node Exporter（指标采集）\n",
+        "2. **告警规则** — CPU、内存、磁盘空间告警\n",
+        "3. **Dashboard 推荐** — Node Exporter Full、MySQL Overview、Nginx Traffic\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Prometheus + Grafana 监控部署指南
+
+### 1. Prometheus 部署
+
+```yaml
+# docker-compose.yml
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+```
+
+### 2. Node Exporter 部署
+
+```bash
+# 安装
+wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+tar xvf node_exporter-1.6.1.linux-amd64.tar.gz
+cp node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
+
+# 创建 systemd 服务
+systemctl enable node_exporter
+systemctl start node_exporter
+```
+
+### 3. 常用告警规则
+
+```yaml
+groups:
+  - name: node_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率过高"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率过高"
+```
+
+### 4. Grafana Dashboard 推荐
+
+| Dashboard | 用途 | ID |
+|-----------|------|-----|
+| Node Exporter Full | 主机监控总览 | 1860 |
+| MySQL Overview | MySQL 性能监控 | 7362 |
+| Nginx Traffic | Nginx 流量监控 | 12558 |
+| Docker Monitoring | Docker 容器监控 | 179 |""",
+)
+
+
+# ---- 场景 14：Docker 容器安全 ----
+_SCENARIO_DOCKER_SECURITY = DemoScenario(
+    name="Docker 容器安全",
+    trigger_keywords=["Docker安全", "容器安全", "镜像扫描", "Trivy", "容器加固", "Docker防护"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "docker_version": "24.0.7",
+                "containers_running": 5,
+                "status": "Docker 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Docker 容器安全分析：**\n\n",
+        "1. **镜像安全** — 使用最小基础镜像、镜像漏洞扫描\n",
+        "2. **运行时安全** — 只读文件系统、非 root 用户、资源限制\n",
+        "3. **网络安全** — 自定义网络隔离、Secrets 管理\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Docker 容器安全最佳实践
+
+### 1. 镜像安全
+
+#### 使用最小基础镜像
+```dockerfile
+# 推荐使用 Alpine 或 Distroless 镜像
+FROM gcr.io/distroless/static-debian12
+COPY --from=builder /app/server /server
+CMD ["/server"]
+```
+
+#### 镜像扫描
+```bash
+# 使用 Trivy 扫描镜像漏洞
+trivy image myapp:latest
+
+# 使用 Grype 扫描
+grype myapp:latest
+
+# CI/CD 集成扫描
+trivy image --exit-code 1 --severity HIGH,CRITICAL myapp:latest
+```
+
+### 2. 运行时安全
+
+#### 只读文件系统
+```bash
+docker run --read-only --tmpfs /tmp:rw,noexec,nosuid myapp:latest
+```
+
+#### 非 root 用户运行
+```dockerfile
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+```
+
+#### 资源限制
+```bash
+docker run --memory=512m --cpus=1.0 --pids-limit=100 myapp:latest
+```
+
+### 3. 网络安全
+
+```bash
+# 自定义网络隔离
+docker network create --internal backend-net
+docker run --network=backend-net myapp:latest
+```""",
+)
+
+
+# ---- 场景 15：Redis 高可用 ----
+_SCENARIO_REDIS_HA = DemoScenario(
+    name="Redis 高可用架构",
+    trigger_keywords=["Redis高可用", "Redis Sentinel", "Redis Cluster", "Redis集群", "Redis运维"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "redis_version": "7.2.3",
+                "redis_mode": "cluster",
+                "status": "Redis 集群运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Redis 高可用分析：**\n\n",
+        "1. **Sentinel 高可用** — 监控、通知、自动故障转移\n",
+        "2. **Redis Cluster** — 分布式集群，支持数据分片\n",
+        "3. **性能优化** — 内存优化、慢查询日志\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Redis 高可用架构与运维
+
+### 1. Redis Sentinel 高可用
+
+#### 配置示例
+```conf
+# sentinel.conf
+sentinel monitor mymaster 127.0.0.1 6379 2
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 60000
+sentinel parallel-syncs mymaster 1
+```
+
+#### 故障转移测试
+```bash
+redis-cli -p 26379 sentinel get-master-addr-by-name mymaster
+# 手动触发故障转移
+redis-cli -p 26379 sentinel failover mymaster
+```
+
+### 2. Redis Cluster 集群
+
+#### 创建集群
+```bash
+redis-cli --cluster create \\
+    127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 \\
+    127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005 \\
+    --cluster-replicas 1
+```
+
+#### 集群管理
+```bash
+# 查看集群状态
+redis-cli cluster info
+redis-cli cluster nodes
+
+# 添加节点
+redis-cli --cluster add-node 127.0.0.1:7006 127.0.0.1:7000
+```
+
+### 3. 性能优化
+
+```conf
+maxmemory 4gb
+maxmemory-policy allkeys-lru
+hash-max-ziplist-entries 512
+slowlog-log-slower-than 10000
+```""",
+)
+
+
+# ---- 场景 16：ELK 日志分析 ----
+_SCENARIO_ELK_SETUP = DemoScenario(
+    name="ELK 日志分析平台",
+    trigger_keywords=["ELK部署", "Elasticsearch配置", "Logstash", "Kibana", "日志分析", "Filebeat"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "elasticsearch_version": "8.10.0",
+                "logstash_version": "8.10.0",
+                "status": "ELK 平台运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**ELK 日志分析分析：**\n\n",
+        "1. **架构组件** — Elasticsearch（存储搜索）+ Logstash（处理管道）+ Kibana（可视化）+ Beats（采集）\n",
+        "2. **索引管理** — 索引模板、生命周期管理\n",
+        "3. **日志采集** — Filebeat 配置、日志格式规范\n\n",
+    ],
+    safety_report=None,
+    final_response="""## ELK 日志分析平台搭建指南
+
+### 1. Elasticsearch 部署
+
+```yaml
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+    ports:
+      - "9200:9200"
+```
+
+### 2. Logstash 配置
+
+```ruby
+# logstash.conf
+input {
+  beats {
+    port => 5044
+  }
+}
+
+filter {
+  grok {
+    match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{GREEDYDATA:msg}" }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "logs-%{+YYYY.MM.dd}"
+  }
+}
+```
+
+### 3. Filebeat 配置
+
+```yaml
+# filebeat.yml
+filebeat.inputs:
+  - type: log
+    paths:
+      - /var/log/nginx/access.log
+    fields:
+      type: nginx
+
+output.logstash:
+  hosts: ["logstash:5044"]
+```""",
+)
+
+
+# ---- 场景 17：Ansible 自动化运维 ----
+_SCENARIO_ANSIBLE_AUTOMATION = DemoScenario(
+    name="Ansible 自动化运维",
+    trigger_keywords=["Ansible部署", "Ansible Playbook", "自动化运维", "Ansible配置", "inventory"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "ansible_version": "2.15.0",
+                "managed_hosts": 12,
+                "status": "Ansible 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Ansible 自动化分析：**\n\n",
+        "1. **Inventory 配置** — 主机清单、分组管理\n",
+        "2. **Playbook 编写** — 任务编排、变量管理、Handler 触发\n",
+        "3. **Role 组织** — 模块化、可复用的配置管理\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Ansible 自动化运维实战
+
+### 1. Inventory 配置
+
+```ini
+# inventory/hosts.ini
+[webservers]
+web1 ansible_host=192.168.1.10
+web2 ansible_host=192.168.1.11
+
+[dbservers]
+db1 ansible_host=192.168.1.20
+
+[all:vars]
+ansible_user=deploy
+ansible_ssh_private_key_file=~/.ssh/deploy_key
+```
+
+### 2. Playbook 示例
+
+```yaml
+---
+- name: Deploy Web Application
+  hosts: webservers
+  vars:
+    app_version: "1.2.3"
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [nginx, python3, supervisor]
+        state: present
+        update_cache: yes
+
+    - name: Deploy application
+      copy:
+        src: "dist/app-{{ app_version }}.tar.gz"
+        dest: /opt/app/
+      notify: restart app
+
+  handlers:
+    - name: restart app
+      supervisorctl:
+        name: myapp
+        state: restarted
+```
+
+### 3. 常用命令
+
+```bash
+# 执行 Playbook
+ansible-playbook -i inventory/hosts.ini deploy.yml
+
+# 检查语法
+ansible-playbook --syntax-check deploy.yml
+
+# 模拟执行（dry-run）
+ansible-playbook --check deploy.yml
+```""",
+)
+
+
+# ---- 场景 18：Kubernetes Ingress 配置 ----
+_SCENARIO_K8S_INGRESS = DemoScenario(
+    name="Kubernetes Ingress 配置",
+    trigger_keywords=["Ingress配置", "Nginx Ingress", "K8s路由", "Ingress Controller", "域名路由"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "ingress_class": "nginx",
+                "cert_manager": "installed",
+                "status": "Ingress 配置正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Kubernetes Ingress 分析：**\n\n",
+        "1. **Ingress Controller** — Nginx Ingress 部署与配置\n",
+        "2. **路由策略** — 基于路径、域名的路由规则\n",
+        "3. **TLS 配置** — 自动证书管理（cert-manager）\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Kubernetes Ingress Controller 配置指南
+
+### 1. Nginx Ingress 部署
+
+```bash
+# 安装 Ingress Controller
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx \\
+  --namespace ingress-nginx --create-namespace
+```
+
+### 2. Ingress 资源配置
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.example.com
+      secretName: app-tls
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-service
+                port:
+                  number: 80
+```
+
+### 3. 基于路径的路由
+
+```yaml
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
+```""",
+)
+
+
+# ---- 场景 19：Linux 磁盘管理 ----
+_SCENARIO_DISK_LVM = DemoScenario(
+    name="Linux 磁盘与LVM管理",
+    trigger_keywords=["LVM配置", "磁盘管理", "逻辑卷", "磁盘分区", "RAID配置", "磁盘扩容"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_disk_usage",
+            "args": {},
+            "result": {
+                "vg_name": "data_vg",
+                "lv_name": "data_lv",
+                "size": "100GB",
+                "status": "LVM 配置正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Linux 磁盘管理分析：**\n\n",
+        "1. **磁盘分区** — GPT 分区、fdisk/gdisk 工具\n",
+        "2. **LVM 管理** — 物理卷、卷组、逻辑卷的创建与扩展\n",
+        "3. **RAID 配置** — mdadm 创建软 RAID\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Linux 磁盘管理与LVM实战
+
+### 1. 磁盘分区管理
+
+```bash
+# 查看磁盘信息
+lsblk
+fdisk -l
+
+# GPT 分区
+gdisk /dev/sdb
+# 或使用 parted
+parted /dev/sdb mklabel gpt
+parted /dev/sdb mkpart primary ext4 0% 100%
+```
+
+### 2. LVM 管理
+
+#### 创建逻辑卷
+```bash
+# 创建物理卷
+pvcreate /dev/sdb1 /dev/sdc1
+
+# 创建卷组
+vgcreate data_vg /dev/sdb1 /dev/sdc1
+
+# 创建逻辑卷
+lvcreate -L 100G -n data_lv data_vg
+
+# 格式化并挂载
+mkfs.ext4 /dev/data_vg/data_lv
+mount /dev/data_vg/data_lv /data
+```
+
+#### 扩容操作
+```bash
+# 扩展逻辑卷
+lvextend -L +50G /dev/data_vg/data_lv
+
+# 扩展文件系统
+resize2fs /dev/data_vg/data_lv    # ext4
+xfs_growfs /data                    # xfs
+```
+
+### 3. RAID 配置
+
+```bash
+# 创建 RAID 5
+mdadm --create /dev/md0 --level=5 --raid-devices=3 /dev/sd{b,c,d}1
+
+# 查看状态
+cat /proc/mdstat
+mdadm --detail /dev/md0
+```""",
+)
+
+
+# ---- 场景 20：Kafka 消息队列 ----
+_SCENARIO_KAFKA_OPS = DemoScenario(
+    name="Kafka 消息队列运维",
+    trigger_keywords=["Kafka部署", "Kafka运维", "消息队列", "Topic管理", "消费者组"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "kafka_version": "3.5.0",
+                "brokers": 3,
+                "topics": 15,
+                "status": "Kafka 集群运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Kafka 消息队列分析：**\n\n",
+        "1. **集群部署** — Zookeeper/KRaft 模式、Broker 配置\n",
+        "2. **Topic 管理** — 创建、分区、副本配置\n",
+        "3. **消费者监控** — 消费进度、Lag 监控\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Kafka 消息队列运维指南
+
+### 1. 集群部署
+
+```yaml
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_NUM_PARTITIONS: 3
+```
+
+### 2. Topic 管理
+
+```bash
+# 创建 Topic
+kafka-topics.sh --create --topic orders \\
+  --bootstrap-server localhost:9092 \\
+  --partitions 6 --replication-factor 3
+
+# 查看 Topic
+kafka-topics.sh --describe --topic orders \\
+  --bootstrap-server localhost:9092
+
+# 修改分区数
+kafka-topics.sh --alter --topic orders \\
+  --partitions 12 --bootstrap-server localhost:9092
+```
+
+### 3. 消费者组监控
+
+```bash
+# 查看消费者组
+kafka-consumer-groups.sh --list --bootstrap-server localhost:9092
+
+# 查看消费进度
+kafka-consumer-groups.sh --describe --group my-group \\
+  --bootstrap-server localhost:9092
+```""",
+)
+
+
+# ---- 场景 21：系统安全基线检查 ----
+_SCENARIO_SECURITY_BASELINE = DemoScenario(
+    name="系统安全基线检查",
+    trigger_keywords=["安全基线", "安全检查", "系统加固", "SSH加固", "密码策略", "权限检查"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "security_score": 85,
+                "issues_found": 3,
+                "status": "安全检查完成",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**系统安全基线分析：**\n\n",
+        "1. **账户安全** — 密码策略、登录限制、空密码账户检查\n",
+        "2. **文件权限** — 关键文件权限、SUID 文件、world-writable 文件\n",
+        "3. **服务安全** — 不必要服务禁用、监听端口检查\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 系统安全基线检查清单
+
+### 1. 账户安全
+
+#### 密码策略
+```bash
+# /etc/login.defs
+PASS_MAX_DAYS   90
+PASS_MIN_DAYS   7
+PASS_MIN_LEN    12
+PASS_WARN_AGE   14
+
+# 检查空密码账户
+awk -F: '($2 == "") {print $1}' /etc/shadow
+
+# 检查 UID 为 0 的账户
+awk -F: '($3 == 0) {print $1}' /etc/passwd
+```
+
+#### 登录限制
+```bash
+# /etc/pam.d/sshd
+auth required pam_tally2.so deny=5 unlock_time=900
+
+# 超时自动注销
+# /etc/profile
+TMOUT=600
+export TMOUT
+```
+
+### 2. 文件权限
+
+```bash
+# 关键文件权限检查
+stat -c "%a %U %G" /etc/passwd /etc/shadow /etc/sudoers
+
+# 查找 SUID 文件
+find / -perm -4000 -type f 2>/dev/null
+
+# 查找 world-writable 文件
+find / -perm -0002 -type f 2>/dev/null
+```
+
+### 3. 服务安全
+
+```bash
+# 禁用不必要的服务
+systemctl disable avahi-daemon
+systemctl disable cups
+systemctl disable rpcbind
+
+# 检查监听端口
+ss -tlnp
+```""",
+)
+
+
+# ---- 场景 22：Kubernetes HPA 自动伸缩 ----
+_SCENARIO_K8S_HPA = DemoScenario(
+    name="Kubernetes HPA 自动伸缩",
+    trigger_keywords=["HPA配置", "自动伸缩", "Pod扩容", "K8s伸缩", "水平扩展"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "hpa_enabled": True,
+                "min_replicas": 2,
+                "max_replicas": 10,
+                "current_replicas": 3,
+                "status": "HPA 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**Kubernetes HPA 分析：**\n\n",
+        "1. **基于 CPU/内存** — 根据 CPU 或内存使用率自动伸缩\n",
+        "2. **自定义指标** — 基于业务指标（如 QPS）伸缩\n",
+        "3. **PodDisruptionBudget** — 保证最小可用副本数\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Kubernetes HPA 自动伸缩配置
+
+### 1. 基于 CPU 的 HPA
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+```
+
+### 2. 基于内存的 HPA
+
+```yaml
+metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+### 3. 基于自定义指标
+
+```yaml
+metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+```
+
+### 4. PodDisruptionBudget
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: web
+```""",
+)
+
+
+# ---- 场景 23：CI/CD 流水线 ----
+_SCENARIO_CICD_PIPELINE = DemoScenario(
+    name="CI/CD 流水线配置",
+    trigger_keywords=["CI/CD配置", "GitLab CI", "GitHub Actions", "流水线", "持续集成"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_system_status",
+            "args": {},
+            "result": {
+                "pipeline_status": "running",
+                "last_build": "success",
+                "status": "CI/CD 运行中",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**CI/CD 流水线分析：**\n\n",
+        "1. **GitLab CI/CD** — .gitlab-ci.yml 配置、阶段定义\n",
+        "2. **GitHub Actions** — Workflow 配置、矩阵构建\n",
+        "3. **安全扫描** — 镜像扫描、代码审计集成\n\n",
+    ],
+    safety_report=None,
+    final_response="""## CI/CD 流水线最佳实践
+
+### 1. GitLab CI/CD
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - build
+  - test
+  - security
+  - deploy
+
+build:
+  stage: build
+  script:
+    - docker build -t $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA .
+    - docker push $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+
+test:
+  stage: test
+  services:
+    - postgres:15
+    - redis:7
+  script:
+    - pytest --cov=app tests/
+
+security_scan:
+  stage: security
+  script:
+    - trivy image --exit-code 1 --severity HIGH $DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+    - bandit -r app/ -ll
+
+deploy_staging:
+  stage: deploy
+  script:
+    - kubectl set image deployment/$CI_PROJECT_NAME app=$DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_SHA
+  environment:
+    name: staging
+  only:
+    - develop
+```
+
+### 2. GitHub Actions
+
+```yaml
+# .github/workflows/ci.yml
+name: CI Pipeline
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: pytest --cov=app tests/
+```""",
+)
+
+
+# ---- 场景 24：网络故障排查 ----
+_SCENARIO_NETWORK_TROUBLESHOOT = DemoScenario(
+    name="Linux 网络故障排查",
+    trigger_keywords=["网络故障", "网络排查", "DNS问题", "TCP连接", "抓包分析", "网络诊断"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "get_network_connections",
+            "args": {},
+            "result": {
+                "dns_status": "normal",
+                "tcp_connections": 156,
+                "status": "网络连接正常",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**网络故障排查分析：**\n\n",
+        "1. **连通性测试** — Ping、MTR、Telnet、Nmap\n",
+        "2. **抓包分析** — TCPDump、Wireshark\n",
+        "3. **DNS 排查** — dig、nslookup\n",
+        "4. **TCP 连接问题** — ss、netstat、防火墙\n\n",
+    ],
+    safety_report=None,
+    final_response="""## Linux 网络故障排查手册
+
+### 1. 连通性测试
+
+```bash
+# Ping 测试
+ping -c 4 8.8.8.8
+
+# MTR 路由追踪
+mtr -r -c 100 8.8.8.8
+
+# Telnet 测试端口
+telnet 192.168.1.100 3306
+
+# Nmap 端口扫描
+nmap -sT -p 1-65535 target_ip
+```
+
+### 2. 抓包分析
+
+```bash
+# TCPDump 抓包
+tcpdump -i eth0 port 80 -w capture.pcap
+
+# 过滤特定流量
+tcpdump -i eth0 'host 192.168.1.100 and port 443'
+
+# 分析抓包文件
+tshark -r capture.pcap -Y "http" -T fields -e http.host
+```
+
+### 3. DNS 问题排查
+
+```bash
+# DNS 解析测试
+dig example.com
+dig +trace example.com
+
+# 检查 DNS 配置
+cat /etc/resolv.conf
+```
+
+### 4. TCP 连接问题
+
+```bash
+# 查看连接状态
+ss -tunap | grep :80
+netstat -tunap | grep ESTABLISHED
+
+# TCP 重传统计
+netstat -s | grep -i retrans
+```""",
+)
+
+
+# ---- 场景 25：知识库文档查询（通用）----
+_SCENARIO_KNOWLEDGE_QUERY = DemoScenario(
+    name="知识库文档查询",
+    trigger_keywords=["文档", "知识库", "运维文档", "技术文档", "帮助文档", "操作手册", "指南", "教程"],
+    mock_snapshot=_MOCK_SNAPSHOT_KYLIN,
+    tool_calls=[
+        {
+            "name": "search_knowledge_base",
+            "args": {},
+            "result": {
+                "documents_count": 40,
+                "categories": ["容器", "数据库", "网络", "安全", "监控", "Kubernetes", "CI/CD"],
+                "status": "知识库检索完成",
+            },
+        },
+    ],
+    reasoning_chunks=[
+        "**知识库检索分析：**\n\n",
+        "1. **文档总数** — 40 篇运维技术文档\n",
+        "2. **覆盖领域** — 容器、数据库、网络、安全、监控、Kubernetes、CI/CD 等\n",
+        "3. **检索方式** — 支持关键词匹配和语义检索\n\n",
+    ],
+    safety_report=None,
+    final_response="""## 知识库文档概览
+
+当前知识库包含 **40 篇** 运维技术文档，覆盖以下领域：
+
+### 文档分类
+
+| 分类 | 文档数 | 主要内容 |
+|------|--------|----------|
+| 容器技术 | 6 | Docker 安全、Helm Chart、容器日志 |
+| 数据库 | 5 | MySQL、PostgreSQL、MongoDB、Redis |
+| Kubernetes | 8 | Pod 排查、Ingress、HPA、调度策略 |
+| 网络 | 4 | TCP/IP、网络故障排查、负载均衡 |
+| 安全 | 5 | SSH 加固、安全基线、Web 漏洞防护 |
+| 监控 | 4 | Prometheus、Grafana、ELK |
+| CI/CD | 3 | GitLab CI、GitHub Actions |
+| 存储 | 3 | LVM、Ceph、磁盘管理 |
+| 其他 | 2 | Ansible、Terraform |
+
+### 如何使用知识库
+
+您可以直接提问，系统会自动检索相关文档并返回答案。例如：
+- "如何排查 Kubernetes Pod 故障？"
+- "Nginx 如何配置安全响应头？"
+- "MySQL 慢查询如何分析？"
+
+> 💡 知识库文档持续更新中，如有需要可联系管理员添加新文档。""",
+)
+
+
+# ============================================================
 # Demo 引擎
 # ============================================================
 
@@ -383,6 +1921,30 @@ class DemoEngine:
             _SCENARIO_DIAGNOSE,
             _SCENARIO_SAFETY_BLOCK,
             _SCENARIO_INJECTION,
+            # 新增 Safe 场景，将拦截率从 66.7% 降低到约 25%
+            _SCENARIO_DISK_QUERY,
+            _SCENARIO_PROCESS_QUERY,
+            _SCENARIO_MEMORY_QUERY,
+            _SCENARIO_NETWORK_QUERY,
+            _SCENARIO_LOAD_QUERY,
+            # 知识库文档场景（基于40篇文档内容）
+            _SCENARIO_CPU_TUNING,
+            _SCENARIO_K8S_POD_TROUBLESHOOT,
+            _SCENARIO_NGINX_SECURITY,
+            _SCENARIO_MYSQL_OPS,
+            _SCENARIO_PROMETHEUS_SETUP,
+            _SCENARIO_DOCKER_SECURITY,
+            _SCENARIO_REDIS_HA,
+            _SCENARIO_ELK_SETUP,
+            _SCENARIO_ANSIBLE_AUTOMATION,
+            _SCENARIO_K8S_INGRESS,
+            _SCENARIO_DISK_LVM,
+            _SCENARIO_KAFKA_OPS,
+            _SCENARIO_SECURITY_BASELINE,
+            _SCENARIO_K8S_HPA,
+            _SCENARIO_CICD_PIPELINE,
+            _SCENARIO_NETWORK_TROUBLESHOOT,
+            _SCENARIO_KNOWLEDGE_QUERY,
         ]
 
     def match_scenario(self, user_input: str) -> Optional[DemoScenario]:

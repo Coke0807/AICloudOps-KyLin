@@ -299,7 +299,7 @@
                   </div>
                   <div class="info-row">
                     <span class="info-label">内核</span>
-                    <span class="info-value kernel-value">linux 6.6.0-32.7.v2505.ky11.loongarch64</span>
+                    <span class="info-value kernel-value">linux 6.6.0-32.7.v2025.ky11.loongarch64</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label">CPU</span>
